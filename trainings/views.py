@@ -1,6 +1,6 @@
 import csv
 from django.http import HttpResponse
-from django.db.models import Avg, Sum, F, FloatField, ExpressionWrapper
+from django.db.models import Avg, Sum, Count, F, FloatField, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
@@ -112,9 +112,218 @@ class TrainingSessionViewSet(ModelViewSet):
             )
             saved.append(obj)
         return Response(DrillScoreSerializer(saved, many=True).data)
+
+    # ==========================================================
+    # Helpers (ranking/dashboard)
+    # ==========================================================
+    def _get_rankable_attendances(self, training, position_code=None):
+        qs = Attendance.objects.filter(
+            training=training,
+            status__in=["PRESENT", "LATE"],
+        ).select_related("athlete")
+        if position_code:
+            qs = qs.filter(athlete__current_position=position_code)
+        return qs
+
+    def _compute_ranking_items(self, training, position_code=None):
+        """
+        Retorna items de ranking com tie-break:
+            1) weighted_average desc
+            2) scored_drills_count desc
+            3) weighted_points (numerator) desc
+            4) athlete_name asc
+        """
+        attendances = self._get_rankable_attendances(training, position_code=position_code)
+        athlete_ids = list(attendances.values_list("athlete_id", flat=True))
+
+        if not athlete_ids:
+            return []
+
+        status_map = {a.athlete_id: a.status for a in attendances}
+
+        numerator_expr = ExpressionWrapper(
+            F("score") * F("training_drill__weight"),
+            output_field=FloatField(),
+        )
+
+        agg = (
+            DrillScore.objects
+            .filter(training_drill__training=training, athlete_id__in=athlete_ids)
+            .values(
+                "athlete_id",
+                "athlete__name",
+                "athlete__jersey_number",
+                "athlete__current_position",
+            )
+            .annotate(
+                weighted_points=Coalesce(Sum(numerator_expr), 0.0),
+                weight_sum=Coalesce(Sum(F("training_drill__weight"), output_field=FloatField()), 0.0),
+                scored_drills_count=Count("training_drill_id"),
+            )
+        )
+
+        items = []
+        for row in agg:
+            denom = float(row["weight_sum"] or 0.0)
+            wavg = round(float(row["weighted_points"]) / denom, 2) if denom > 0 else None
+
+            items.append({
+                "athlete_id": row["athlete_id"],
+                "athlete_name": row["athlete__name"],
+                "jersey_number": row["athlete__jersey_number"],
+                "position": row["athlete__current_position"],
+                "attendance_status": status_map.get(row["athlete_id"]),
+                "weighted_average": wavg,
+                "scored_drills_count": int(row["scored_drills_count"] or 0),
+                "weighted_points": round(float(row["weighted_points"] or 0.0), 3),
+            })
+
+        items.sort(
+            key=lambda x: (
+                x["weighted_average"] is None,
+                -(x["weighted_average"] or -9999),
+                -x["scored_drills_count"],
+                -x["weighted_points"],
+                x["athlete_name"].lower() if x["athlete_name"] else "",
+            )
+        )
+
+        for i, it in enumerate(items, start=1):
+            it["rank"] = i
+
+        return items
+
+    def _get_drills_and_scores(self, training):
+        drills = list(TrainingDrill.objects.filter(training=training).order_by("order", "id"))
+        drill_ids = [d.id for d in drills]
+        scores = list(
+            DrillScore.objects
+            .filter(training_drill_id__in=drill_ids)
+            .select_related("athlete", "training_drill", "training_drill__drill")
+        )
+        return drills, scores
+
+    # ==========================================================
+    # Endpoints
+    # ==========================================================
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+    def ranking(self, request, pk=None):
+        training = self.get_object()
+        position = request.query_params.get("position")  # ex: WR, DB, QB...
+        items = self._compute_ranking_items(training, position_code=position)
+
+        return Response({
+            "training": {
+                "id": training.id,
+                "date": training.date,
+                "start_time": training.start_time,
+                "location": training.location,
+            },
+            "filters": {"position": position},
+            "items": items,
+        })
+
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+    def coach_dashboard(self, request, pk=None):
+        training = self.get_object()
+
+        attendances = (
+            Attendance.objects
+            .filter(training=training)
+            .select_related("athlete")
+            .order_by("athlete__name")
+        )
+        attendance_payload = [{
+            "athlete_id": a.athlete_id,
+            "athlete_name": a.athlete.name,
+            "jersey_number": a.athlete.jersey_number,
+            "position": a.athlete.current_position,
+            "status": a.status,
+            "checkin_time": a.checkin_time,
+        } for a in attendances]
+
+        drills, scores = self._get_drills_and_scores(training)
+
+        drills_payload = [{
+            "training_drill_id": d.id,
+            "name": d.name,
+            "order": d.order,
+            "max_score": d.max_score,
+            "weight": float(d.weight),
+            "description": d.description,
+        } for d in drills]
+
+        drill_avg_qs = (
+            DrillScore.objects
+            .filter(training_drill__training=training)
+            .values("training_drill_id")
+            .annotate(avg_score=Avg("score"))
+        )
+        drill_avg_map = {
+            row["training_drill_id"]: (
+                round(float(row["avg_score"]), 2) if row["avg_score"] is not None else None
+            )
+            for row in drill_avg_qs
+        }
+        for d in drills_payload:
+            d["average_score"] = drill_avg_map.get(d["training_drill_id"])
+
+        # JSON-safe map: {"<athlete_id>": {"<training_drill_id>": {score, comment, rated_by}}}
+        score_map = {}
+        for s in scores:
+            athlete_key = str(s.athlete_id)
+            drill_key = str(s.training_drill_id)
+            if athlete_key not in score_map:
+                score_map[athlete_key] = {}
+            score_map[athlete_key][drill_key] = {
+                "score": float(s.score),
+                "comment": s.comment,
+                "rated_by": s.rated_by_id,
+            }
+
+        ranking_items = self._compute_ranking_items(training)
+        valid_avgs = [x["weighted_average"] for x in ranking_items if x["weighted_average"] is not None]
+        training_weighted_avg = round(sum(valid_avgs) / len(valid_avgs), 2) if valid_avgs else None
+
+        rankable_positions = list(
+            Attendance.objects
+            .filter(training=training, status__in=["PRESENT", "LATE"])
+            .exclude(athlete__current_position__isnull=True)
+            .exclude(athlete__current_position__exact="")
+            .values_list("athlete__current_position", flat=True)
+            .distinct()
+        )
+        ranking_by_position = {pos: self._compute_ranking_items(training, position_code=pos) for pos in rankable_positions}
+
+        return Response({
+            "training": {
+                "id": training.id,
+                "date": training.date,
+                "start_time": training.start_time,
+                "location": training.location,
+                "notes": training.notes,
+            },
+            "summary": {
+                "athletes_total": len(attendance_payload),
+                "drills_total": len(drills_payload),
+                "training_weighted_average": training_weighted_avg,
+            },
+            "attendance": attendance_payload,
+            "drills": drills_payload,
+            "ranking": ranking_items,
+            "ranking_by_position": ranking_by_position,
+            "score_map": score_map,
+        })
+
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")
+    def export_pdf(self, request, pk=None):
+        return _export_pdf_impl(self, request, pk)
+
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/csv")
+    def export_csv(self, request, pk=None):
+        return _export_csv_impl(self, request, pk)
     
-@action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")
-def export_pdf(self, request, pk=None):
+def _export_pdf_impl(self, request, pk=None):
     training = self.get_object()
 
     # =============================
@@ -455,16 +664,16 @@ def export_pdf(self, request, pk=None):
             scores_row = []
             comments_row = []
             for d in chunk:
-                sc, cm = score_map.get((athlete.id, d.id), ("", ""))
+                sc, comment = score_map.get((athlete.id, d.id), ("", ""))
                 scores_row.append(sc)
 
                 # comentário “legível”
-                if isinstance(cm, str):
-                    cm_txt = cm.strip()
-                    cm_txt = (cm_txt[:120] + "...") if len(cm_txt) > 123 else cm_txt
+                if isinstance(comment, str):
+                    comment_txt = comment.strip()
+                    comment_txt = (comment_txt[:120] + "...") if len(comment_txt) > 123 else comment_txt
                 else:
-                    cm_txt = ""
-                comments_row.append(cm_txt)
+                    comment_txt = ""
+                comments_row.append(comment_txt)
 
             rows.append(base + scores_row + comments_row)
 
@@ -497,211 +706,210 @@ def export_pdf(self, request, pk=None):
     # ==========================================================
     # Helpers
     # ==========================================================
-    def _get_rankable_attendances(self, training, position_code=None):
-        qs = Attendance.objects.filter(training=training, status__in=["PRESENT", "LATE"]).select_related("athlete")
-        if position_code:
-            qs = qs.filter(athlete__current_position=position_code)
-        return qs
+def _get_rankable_attendances(self, training, position_code=None):
+    qs = Attendance.objects.filter(training=training, status__in=["PRESENT", "LATE"]).select_related("athlete")
+    if position_code:
+        qs = qs.filter(athlete__current_position=position_code)
+    return qs
 
-    def _compute_ranking_items(self, training, position_code=None):
-        """
-        Retorna items de ranking com tie-break:
-          1) weighted_average desc
-          2) scored_drills_count desc
-          3) weighted_points (numerator) desc
-          4) athlete_name asc
-        """
-        attendances = self._get_rankable_attendances(training, position_code=position_code)
-        athlete_ids = list(attendances.values_list("athlete_id", flat=True))
+def _compute_ranking_items(self, training, position_code=None):
+    """
+    Retorna items de ranking com tie-break:
+        1) weighted_average desc
+        2) scored_drills_count desc
+        3) weighted_points (numerator) desc
+        4) athlete_name asc
+    """
+    attendances = self._get_rankable_attendances(training, position_code=position_code)
+    athlete_ids = list(attendances.values_list("athlete_id", flat=True))
 
-        if not athlete_ids:
-            return []
+    if not athlete_ids:
+        return []
 
-        status_map = {a.athlete_id: a.status for a in attendances}
+    status_map = {a.athlete_id: a.status for a in attendances}
 
-        numerator_expr = ExpressionWrapper(
-            F("score") * F("training_drill__weight"),
-            output_field=FloatField()
+    numerator_expr = ExpressionWrapper(
+        F("score") * F("training_drill__weight"),
+        output_field=FloatField()
+    )
+
+    agg = (
+        DrillScore.objects
+        .filter(training_drill__training=training, athlete_id__in=athlete_ids)
+        .values(
+            "athlete_id",
+            "athlete__name",
+            "athlete__jersey_number",
+            "athlete__current_position",
         )
-
-        agg = (
-            DrillScore.objects
-            .filter(training_drill__training=training, athlete_id__in=athlete_ids)
-            .values(
-                "athlete_id",
-                "athlete__name",
-                "athlete__jersey_number",
-                "athlete__current_position",
-            )
-            .annotate(
-                weighted_points=Coalesce(Sum(numerator_expr), 0.0),
-                weight_sum=Coalesce(Sum(F("training_drill__weight"), output_field=FloatField()), 0.0),
-                scored_drills_count=Coalesce(Sum(1, output_field=FloatField()), 0.0),
-            )
+        .annotate(
+            weighted_points=Coalesce(Sum(numerator_expr), 0.0),
+            weight_sum=Coalesce(Sum(F("training_drill__weight"), output_field=FloatField()), 0.0),
+            scored_drills_count=Coalesce(Sum(1, output_field=FloatField()), 0.0),
         )
+    )
 
-        items = []
-        for row in agg:
-            denom = float(row["weight_sum"] or 0.0)
-            wavg = round(float(row["weighted_points"]) / denom, 2) if denom > 0 else None
+    items = []
+    for row in agg:
+        denom = float(row["weight_sum"] or 0.0)
+        wavg = round(float(row["weighted_points"]) / denom, 2) if denom > 0 else None
 
-            items.append({
-                "athlete_id": row["athlete_id"],
-                "athlete_name": row["athlete__name"],
-                "jersey_number": row["athlete__jersey_number"],
-                "position": row["athlete__current_position"],
-                "attendance_status": status_map.get(row["athlete_id"]),
-                "weighted_average": wavg,
-                "scored_drills_count": int(row["scored_drills_count"] or 0),
-                "weighted_points": round(float(row["weighted_points"] or 0.0), 3),
-            })
-
-        # Tie-break sorting
-        # None average goes last
-        items.sort(key=lambda x: (
-            x["weighted_average"] is None,
-            -(x["weighted_average"] or -9999),
-            -x["scored_drills_count"],
-            -x["weighted_points"],
-            x["athlete_name"].lower() if x["athlete_name"] else "",
-        ))
-
-        for i, it in enumerate(items, start=1):
-            it["rank"] = i
-
-        return items
-
-    def _get_drills_and_scores(self, training):
-        drills = list(TrainingDrill.objects.filter(training=training).order_by("order", "id"))
-        drill_ids = [d.id for d in drills]
-        scores = list(
-            DrillScore.objects
-            .filter(training_drill_id__in=drill_ids)
-            .select_related("athlete", "training_drill", "training_drill__drill")
-        )
-        return drills, scores
-
-    # ==========================================================
-    # NOVO: Ranking (com tie-break) + filtro por posição
-    # ==========================================================
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
-    def ranking(self, request, pk=None):
-        training = self.get_object()
-        position = request.query_params.get("position")  # ex: WR, DB, QB...
-
-        items = self._compute_ranking_items(training, position_code=position)
-
-        return Response({
-            "training": {
-                "id": training.id,
-                "date": training.date,
-                "start_time": training.start_time,
-                "location": training.location,
-            },
-            "filters": {"position": position},
-            "items": items,
+        items.append({
+            "athlete_id": row["athlete_id"],
+            "athlete_name": row["athlete__name"],
+            "jersey_number": row["athlete__jersey_number"],
+            "position": row["athlete__current_position"],
+            "attendance_status": status_map.get(row["athlete_id"]),
+            "weighted_average": wavg,
+            "scored_drills_count": int(row["scored_drills_count"] or 0),
+            "weighted_points": round(float(row["weighted_points"] or 0.0), 3),
         })
+
+    # Tie-break sorting
+    # None average goes last
+    items.sort(key=lambda x: (
+        x["weighted_average"] is None,
+        -(x["weighted_average"] or -9999),
+        -x["scored_drills_count"],
+        -x["weighted_points"],
+        x["athlete_name"].lower() if x["athlete_name"] else "",
+    ))
+
+    for i, it in enumerate(items, start=1):
+        it["rank"] = i
+
+    return items
+
+def _get_drills_and_scores(self, training):
+    drills = list(TrainingDrill.objects.filter(training=training).order_by("order", "id"))
+    drill_ids = [d.id for d in drills]
+    scores = list(
+        DrillScore.objects
+        .filter(training_drill_id__in=drill_ids)
+        .select_related("athlete", "training_drill", "training_drill__drill")
+    )
+    return drills, scores
+
+# ==========================================================
+# NOVO: Ranking (com tie-break) + filtro por posição
+# ==========================================================
+@action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+def ranking(self, request, pk=None):
+    training = self.get_object()
+    position = request.query_params.get("position")  # ex: WR, DB, QB...
+
+    items = self._compute_ranking_items(training, position_code=position)
+
+    return Response({
+        "training": {
+            "id": training.id,
+            "date": training.date,
+            "start_time": training.start_time,
+            "location": training.location,
+        },
+        "filters": {"position": position},
+        "items": items,
+    })
 
     # ==========================================================
     # NOVO: Dashboard do Coach (inclui ranking por posição)
     # ==========================================================
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
-    def coach_dashboard(self, request, pk=None):
-        training = self.get_object()
+@action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+def coach_dashboard(self, request, pk=None):
+    training = self.get_object()
 
-        # Presença completa (todos, inclusive ausentes)
-        attendances = (
-            Attendance.objects
-            .filter(training=training)
-            .select_related("athlete")
-            .order_by("athlete__name")
-        )
-        attendance_payload = [{
-            "athlete_id": a.athlete_id,
-            "athlete_name": a.athlete.name,
-            "jersey_number": a.athlete.jersey_number,
-            "position": a.athlete.current_position,
-            "status": a.status,
-            "checkin_time": a.checkin_time,
-        } for a in attendances]
+    # Presença completa (todos, inclusive ausentes)
+    attendances = (
+        Attendance.objects
+        .filter(training=training)
+        .select_related("athlete")
+        .order_by("athlete__name")
+    )
+    attendance_payload = [{
+        "athlete_id": a.athlete_id,
+        "athlete_name": a.athlete.name,
+        "jersey_number": a.athlete.jersey_number,
+        "position": a.athlete.current_position,
+        "status": a.status,
+        "checkin_time": a.checkin_time,
+    } for a in attendances]
 
-        drills, scores = self._get_drills_and_scores(training)
+    drills, scores = self._get_drills_and_scores(training)
 
-        drills_payload = [{
-            "training_drill_id": d.id,
-            "name": d.name,
-            "order": d.order,
-            "max_score": d.max_score,
-            "weight": float(d.weight),
-            "description": d.description,
-        } for d in drills]
+    drills_payload = [{
+        "training_drill_id": d.id,
+        "name": d.name,
+        "order": d.order,
+        "max_score": d.max_score,
+        "weight": float(d.weight),
+        "description": d.description,
+    } for d in drills]
 
-        # Média por drill
-        drill_avg_qs = (
-            DrillScore.objects
-            .filter(training_drill__training=training)
-            .values("training_drill_id")
-            .annotate(avg_score=Avg("score"))
-        )
-        drill_avg_map = {row["training_drill_id"]: (round(float(row["avg_score"]), 2) if row["avg_score"] is not None else None) for row in drill_avg_qs}
-        for d in drills_payload:
-            d["average_score"] = drill_avg_map.get(d["training_drill_id"])
+    # Média por drill
+    drill_avg_qs = (
+        DrillScore.objects
+        .filter(training_drill__training=training)
+        .values("training_drill_id")
+        .annotate(avg_score=Avg("score"))
+    )
+    drill_avg_map = {row["training_drill_id"]: (round(float(row["avg_score"]), 2) if row["avg_score"] is not None else None) for row in drill_avg_qs}
+    for d in drills_payload:
+        d["average_score"] = drill_avg_map.get(d["training_drill_id"])
 
-        # score_map (athlete_id, drill_id) => score/comment
-        score_map = {}
-        for s in scores:
-            score_map[(s.athlete_id, s.training_drill_id)] = {
-                "score": float(s.score),
-                "comment": s.comment,
-                "rated_by": s.rated_by_id,
-            }
+    # score_map (athlete_id, drill_id) => score/comment
+    score_map = {}
+    for s in scores:
+        score_map[(s.athlete_id, s.training_drill_id)] = {
+            "score": float(s.score),
+            "comment": s.comment,
+            "rated_by": s.rated_by_id,
+        }
 
-        # Ranking geral (tie-break + ponderada)
-        ranking_items = self._compute_ranking_items(training)
+    # Ranking geral (tie-break + ponderada)
+    ranking_items = self._compute_ranking_items(training)
 
-        # Média ponderada geral do treino (média das médias dos atletas rankeados)
-        valid_avgs = [x["weighted_average"] for x in ranking_items if x["weighted_average"] is not None]
-        training_weighted_avg = round(sum(valid_avgs) / len(valid_avgs), 2) if valid_avgs else None
+    # Média ponderada geral do treino (média das médias dos atletas rankeados)
+    valid_avgs = [x["weighted_average"] for x in ranking_items if x["weighted_average"] is not None]
+    training_weighted_avg = round(sum(valid_avgs) / len(valid_avgs), 2) if valid_avgs else None
 
-        # Ranking por posição
-        # Pegamos as posições presentes no treino (rankáveis) e montamos um dict
-        rankable_positions = list(
-            Attendance.objects
-            .filter(training=training, status__in=["PRESENT", "LATE"])
-            .exclude(athlete__current_position__isnull=True)
-            .exclude(athlete__current_position__exact="")
-            .values_list("athlete__current_position", flat=True)
-            .distinct()
-        )
-        ranking_by_position = {}
-        for pos in rankable_positions:
-            ranking_by_position[pos] = self._compute_ranking_items(training, position_code=pos)
+    # Ranking por posição
+    # Pegamos as posições presentes no treino (rankáveis) e montamos um dict
+    rankable_positions = list(
+        Attendance.objects
+        .filter(training=training, status__in=["PRESENT", "LATE"])
+        .exclude(athlete__current_position__isnull=True)
+        .exclude(athlete__current_position__exact="")
+        .values_list("athlete__current_position", flat=True)
+        .distinct()
+    )
+    ranking_by_position = {}
+    for pos in rankable_positions:
+        ranking_by_position[pos] = self._compute_ranking_items(training, position_code=pos)
 
-        return Response({
-            "training": {
-                "id": training.id,
-                "date": training.date,
-                "start_time": training.start_time,
-                "location": training.location,
-                "notes": training.notes,
-            },
-            "summary": {
-                "athletes_total": len(attendance_payload),
-                "drills_total": len(drills_payload),
-                "training_weighted_average": training_weighted_avg,
-            },
-            "attendance": attendance_payload,
-            "drills": drills_payload,
-            "ranking": ranking_items,
-            "ranking_by_position": ranking_by_position,
-            "score_map": score_map,
-        })
+    return Response({
+        "training": {
+            "id": training.id,
+            "date": training.date,
+            "start_time": training.start_time,
+            "location": training.location,
+            "notes": training.notes,
+        },
+        "summary": {
+            "athletes_total": len(attendance_payload),
+            "drills_total": len(drills_payload),
+            "training_weighted_average": training_weighted_avg,
+        },
+        "attendance": attendance_payload,
+        "drills": drills_payload,
+        "ranking": ranking_items,
+        "ranking_by_position": ranking_by_position,
+        "score_map": score_map,
+    })
 
-    # ==========================================================
-    # NOVO: Export CSV (abre no Excel)
-    # ==========================================================
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/csv")
-    def export_csv(self, request, pk=None):
+# ==========================================================
+# NOVO: Export CSV (abre no Excel)
+# ==========================================================
+def _export_csv_impl(self, request, pk=None):
         training = self.get_object()
 
         drills, scores = self._get_drills_and_scores(training)
