@@ -1,0 +1,63 @@
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+
+# Django artifacts
+*.log
+local_settings.py
+settings_local.py
+
+# Database (local dev)
+db.sqlite3
+*.sqlite3
+
+# Uploads (usually environment-specific)
+media/
+
+# --- Node / Vue (Vite) ---
+node_modules/
+.pnpm-store/
+
+# Build output
+frontend/dist/
+frontend/.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
