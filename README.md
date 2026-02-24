@@ -1,182 +1,84 @@
-# 🏈 Mamutes F.A. -- Plataforma de Gestão de Flag Football
+# Mamutes F.A. — Plataforma de Gestão de Flag Football
 
-Sistema completo para gestão de time de Flag Football, desenvolvido com:
+Sistema para gestão técnica do time (treinos, atletas, presença, drills, notas, rankings e relatórios).
 
--   **Backend:** Django + Django REST Framework
--   **Frontend:** Vue 3 + Vuetify 3 + Tailwind
--   **Autenticação:** JWT (SimpleJWT)
--   **Gráficos:** Chart.js
--   **Exportação:** PDF Premium (ReportLab)
+**Stack atual**
+- Backend: Django 6 + Django REST Framework + SimpleJWT + SQLite
+- Frontend: Vue 3 + Vuetify 4 + Vite + Pinia + Vue Router
+- Relatórios: PDF via ReportLab
+- Gráficos: Chart.js
 
-------------------------------------------------------------------------
+## Funcionalidades (atual)
+- CRUD de atletas (campos alinhados ao model do Django)
+- CRUD de treinos
+- Tela de detalhe do treino (coach):
+  - lista de presença (salva via endpoint bulk)
+  - drills do treino (adiciona via endpoint bulk e remove via endpoint de drills)
+  - dashboard do coach (ranking, médias, etc.)
+  - exportação PDF do treino
 
-# 📌 Visão Geral
+## Como rodar
 
-A plataforma permite:
+### Backend (Django)
+Servidor padrão: `http://127.0.0.1:8000`
 
--   Cadastro completo de atletas
--   Controle de presença em treinos
--   Cadastro de drills por treino
--   Lançamento de notas (0--10) por drill
--   Cálculo de média ponderada por treino
--   Ranking com desempate automático
--   Ranking por posição (QB, WR, DB, etc.)
--   Dashboard do jogador com gráficos de evolução
--   Dashboard do coach com matriz de notas
--   Exportação premium em PDF com:
-    -   Capa personalizada
-    -   Resumo executivo
-    -   Top 3 geral e por posição
-    -   Gráfico de desempenho
-    -   Presença
-    -   Ranking completo
-    -   Notas detalhadas por drill
+```bash
+cd /c/Users/u12512/Projetos/mamutes_fa
 
-------------------------------------------------------------------------
+# (opcional) criar e ativar venv
+python -m venv venv
+source venv/Scripts/activate
 
-# 🧠 Arquitetura
-
-## Backend (Django)
-
-Apps principais:
-
--   accounts
--   athletes
--   trainings
--   combine
--   dashboard
-
-Principais recursos:
-
--   JWT Authentication
--   Permissões por role (ADMIN, COACH, PLAYER)
--   Média ponderada por peso do drill
--   Ranking com critério de desempate:
-    1.  Maior média ponderada
-    2.  Maior número de drills avaliados
-    3.  Maior soma ponderada de pontos
-    4.  Ordem alfabética
-
-------------------------------------------------------------------------
-
-## Frontend (Vuetify 3)
-
-Estrutura:
-
--   Layout com Drawer + AppBar
--   Guards por Role
--   Dashboard Player
--   Dashboard Coach
--   Gráficos com Chart.js
--   Matriz de notas interativa
--   Exportação PDF via backend
-
-------------------------------------------------------------------------
-
-# 🚀 Como Rodar o Projeto
-
-## 🔹 Backend
-
-``` bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
+# instalar deps (se o requirements.txt estiver preenchido)
 pip install -r requirements.txt
+
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Servidor padrão:
+Observações:
+- O projeto usa SQLite por padrão (`db.sqlite3`).
+- Em dev, o CORS está liberado (`CORS_ALLOW_ALL_ORIGINS=True`).
 
-    http://127.0.0.1:8000
+### Frontend (Vue)
+Servidor padrão: `http://localhost:3000`
 
-------------------------------------------------------------------------
+O frontend lê a base da API por `VITE_API_BASE_URL` (arquivo `frontend/.env`).
 
-## 🔹 Frontend
-
-``` bash
-cd frontend
-npm install
-npm run dev
+```bash
+cd /c/Users/u12512/Projetos/mamutes_fa/frontend
+pnpm install
+pnpm dev
 ```
 
-Frontend padrão:
+## Autenticação e roles
+Roles: `ADMIN`, `COACH`, `PLAYER`.
 
-    http://localhost:5173
+Endpoints de auth:
+- `POST /api/accounts/login/` (JWT)
+- `POST /api/accounts/refresh/`
+- `GET /api/accounts/me/`
 
-------------------------------------------------------------------------
+## Endpoints principais (API)
 
-# 🔐 Roles
+Atletas:
+- `GET/POST /api/athletes/`
+- `GET/PATCH/DELETE /api/athletes/{id}/`
 
-  Role     Acesso
-  -------- ----------------------------------------
-  ADMIN    Controle total
-  COACH    Gerencia treinos, atletas e relatórios
-  PLAYER   Visualiza próprio desempenho
+Treinos:
+- `GET/POST /api/trainings/`
+- `GET/PATCH/DELETE /api/trainings/{id}/`
 
-------------------------------------------------------------------------
+Coach (treino):
+- `GET /api/trainings/{id}/coach_dashboard/`
+- `POST /api/trainings/{id}/attendance_bulk/` (lista de presença)
+- `POST /api/trainings/{id}/drills_bulk/` (drills do treino)
+- `DELETE /api/trainings/drills/{training_drill_id}/` (remover drill do treino)
+- `GET /api/trainings/{id}/export/pdf/`
+- `GET /api/trainings/{id}/export/csv/`
 
-# 📊 Funcionalidades Avançadas
-
-## Média Ponderada
-
-Cada drill pode possuir peso diferente.
-
-Fórmula:
-
-Média = Σ(score × weight) / Σ(weight)
-
-------------------------------------------------------------------------
-
-## Ranking por Posição
-
-Exemplo: - WR - QB - DB - RB - CB - S - C - R
-
-------------------------------------------------------------------------
-
-## Relatório PDF Premium
-
-Inclui:
-
--   Capa com logo do time
--   Sumário executivo
--   Gráfico Top 10
--   Ranking completo
--   Ranking por posição
--   Presença
--   Notas detalhadas por drill
--   Paginação automática
-
-------------------------------------------------------------------------
-
-# 📦 Estrutura do Projeto
-
-    mamutes_fa/
-    │
-    ├── backend (Django)
-    │
-    └── frontend (Vue + Vuetify)
-
-------------------------------------------------------------------------
-
-# 🎯 Próximas Evoluções Possíveis
-
--   Comparação entre treinos
--   Evolução por temporada
--   MVP do treino automático
--   Most Improved Player
--   Exportação Excel
--   Modo mobile otimizado
--   Upload de vídeo por drill
-
-------------------------------------------------------------------------
-
-# 🏆 Objetivo do Projeto
-
-Criar uma plataforma profissional de gestão técnica para time de Flag
-Football, permitindo análise de desempenho, evolução individual e tomada
-de decisão baseada em dados.
-
-------------------------------------------------------------------------
-
-Desenvolvido para o time **Mamutes F.A.**
+## Branding do PDF
+Config em `core/settings.py`:
+- `BRAND_NAME`
+- `BRAND_LOGO_PATH` (default: `media/brand/logo.png`)
