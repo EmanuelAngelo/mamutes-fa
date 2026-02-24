@@ -57,6 +57,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAuth) {
     if (!auth.accessToken) return { name: 'login' }
+
     if (!auth.me && !auth.loadingMe) {
       try {
         await auth.fetchMe()
@@ -68,15 +69,17 @@ router.beforeEach(async (to) => {
 
     const roles = (to.meta.roles as string[] | undefined) ?? []
     if (roles.length && auth.me && !roles.includes(auth.me.role)) {
-      // redireciona conforme role
-      if (auth.me.role === 'PLAYER') return { name: 'player-dashboard' }
-      return { name: 'coach-dashboard' }
+      return auth.me.role === 'PLAYER'
+        ? { name: 'player-dashboard' }
+        : { name: 'coach-dashboard' }
     }
   }
 
   if (to.name === 'login' && auth.accessToken) {
     if (!auth.me) await auth.fetchMe()
-    return auth.me?.role === 'PLAYER' ? { name: 'player-dashboard' } : { name: 'coach-dashboard' }
+    return auth.me?.role === 'PLAYER'
+      ? { name: 'player-dashboard' }
+      : { name: 'coach-dashboard' }
   }
 
   return true

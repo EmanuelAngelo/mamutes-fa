@@ -1,19 +1,16 @@
 import axios, { AxiosError } from 'axios'
-import { useAuthStore } from '../stores/auth'
-
-const baseURL = import.meta.env.VITE_API_BASE_URL
+import { useAuthStore } from '@/stores/auth'
 
 export const http = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 20000,
 })
 
 http.interceptors.request.use((config) => {
   const auth = useAuthStore()
-  const token = auth.accessToken
-  if (token) {
+  if (auth.accessToken) {
     config.headers = config.headers ?? {}
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = `Bearer ${auth.accessToken}`
   }
   return config
 })
@@ -33,7 +30,6 @@ http.interceptors.response.use(
     const status = error.response?.status
     const originalConfig: any = error.config
 
-    // Se 401 e temos refresh, tenta refresh 1x
     if (status === 401 && !originalConfig?._retry && auth.refreshToken) {
       originalConfig._retry = true
 

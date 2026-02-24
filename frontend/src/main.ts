@@ -1,9 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { registerPlugins } from '@/plugins'
 
-const app = createApp(App)
+import { registerPlugins } from './plugins'
 
-registerPlugins(app)
-
-app.mount('#app')
+createApp(App).use(registerPlugins).mount('#app')
