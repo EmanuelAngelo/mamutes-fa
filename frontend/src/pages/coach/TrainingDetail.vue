@@ -37,6 +37,128 @@
       </v-card>
 
       <v-card class="mb-4">
+        <v-card-title class="d-flex align-center justify-space-between">
+          Lista de presença
+          <v-btn variant="tonal" :loading="savingAttendance" @click="saveAttendance">
+            Salvar presença
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-alert v-if="attendanceError" type="error" variant="tonal" class="mb-3">
+            {{ attendanceError }}
+          </v-alert>
+
+          <v-progress-circular v-if="loadingAttendance" indeterminate />
+
+          <v-table v-else>
+            <thead>
+              <tr>
+                <th>Atleta</th>
+                <th>Camisa</th>
+                <th>Posição</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in attendanceRows" :key="row.athlete_id">
+                <td>{{ row.athlete_name }}</td>
+                <td>{{ row.jersey_number || '-' }}</td>
+                <td>{{ row.position || '-' }}</td>
+                <td style="min-width: 180px">
+                  <v-select
+                    v-model="row.status"
+                    :items="attendanceStatusItems"
+                    item-title="label"
+                    item-value="value"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+      </v-card>
+
+      <v-card class="mb-4">
+        <v-card-title class="d-flex align-center justify-space-between">
+          Drills do treino
+          <v-btn variant="tonal" :loading="savingDrill" @click="addDrill">
+            Adicionar drill
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-alert v-if="drillError" type="error" variant="tonal" class="mb-3">
+            {{ drillError }}
+          </v-alert>
+
+          <v-row>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="newDrill.drill"
+                :items="catalog"
+                item-title="name"
+                item-value="id"
+                label="Catálogo (opcional)"
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-text-field v-model="newDrill.name_override" label="Nome (override)" />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model.number="newDrill.order" type="number" label="Ordem" />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model.number="newDrill.max_score" type="number" label="Max" />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field v-model.number="newDrill.weight" type="number" label="Peso" />
+            </v-col>
+            <v-col cols="12" md="10">
+              <v-textarea v-model="newDrill.description" label="Descrição" />
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-3" />
+
+          <v-table>
+            <thead>
+              <tr>
+                <th>Ordem</th>
+                <th>Drill</th>
+                <th>Peso</th>
+                <th>Max</th>
+                <th>Média</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in dashboard.drills" :key="d.training_drill_id">
+                <td>{{ d.order }}</td>
+                <td>{{ d.name }}</td>
+                <td>{{ d.weight }}</td>
+                <td>{{ d.max_score }}</td>
+                <td>{{ d.average_score ?? '-' }}</td>
+                <td>
+                  <v-btn
+                    size="small"
+                    color="error"
+                    variant="text"
+                    :loading="deletingDrillId === d.training_drill_id"
+                    @click="deleteDrill(d.training_drill_id)"
+                  >
+                    Remover
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+      </v-card>
+
+      <v-card class="mb-4">
         <v-card-title>Ranking</v-card-title>
         <v-card-text>
           <v-table>
@@ -88,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '@/api/http'
 
@@ -99,6 +221,33 @@ const loading = ref(false)
 const downloading = ref(false)
 const error = ref<string | null>(null)
 const lastUrl = ref<string>('')
+
+const catalog = ref<any[]>([])
+
+const loadingAttendance = ref(false)
+const savingAttendance = ref(false)
+const attendanceError = ref<string | null>(null)
+const attendanceRows = ref<any[]>([])
+
+const savingDrill = ref(false)
+const drillError = ref<string | null>(null)
+const deletingDrillId = ref<number | null>(null)
+
+const attendanceStatusItems = [
+  { label: 'Presente', value: 'PRESENT' },
+  { label: 'Ausente', value: 'ABSENT' },
+  { label: 'Justificado', value: 'JUSTIFIED' },
+  { label: 'Atraso', value: 'LATE' },
+]
+
+const newDrill = ref({
+  drill: null as number | null,
+  name_override: '',
+  order: 1,
+  description: '',
+  max_score: 10,
+  weight: 1,
+})
 
 async function fetchDashboard() {
   loading.value = true
@@ -124,6 +273,126 @@ async function fetchDashboard() {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchCatalog() {
+  try {
+    const { data } = await http.get('/api/trainings/catalog/?ordering=name')
+    catalog.value = data
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+function buildAttendanceRowsFrom(athletes: any[], existingAttendance: any[]) {
+  const existingByAthleteId = new Map<number, any>()
+  for (const a of existingAttendance ?? []) {
+    existingByAthleteId.set(a.athlete_id, a)
+  }
+
+  attendanceRows.value = athletes.map((ath) => {
+    const ex = existingByAthleteId.get(ath.id)
+    return {
+      athlete_id: ath.id,
+      athlete_name: ath.name,
+      jersey_number: ath.jersey_number,
+      position: ath.current_position,
+      status: ex?.status ?? 'PRESENT',
+    }
+  })
+}
+
+async function fetchAttendanceEditorData() {
+  loadingAttendance.value = true
+  attendanceError.value = null
+  try {
+    const [{ data: athletes }] = await Promise.all([
+      http.get('/api/athletes/?is_active=true&ordering=name'),
+    ])
+    buildAttendanceRowsFrom(athletes, dashboard.value?.attendance)
+  } catch (e: any) {
+    const status = e?.response?.status
+    attendanceError.value = status ? `Falha ao carregar atletas (HTTP ${status}).` : 'Falha ao carregar atletas.'
+    console.error(e)
+  } finally {
+    loadingAttendance.value = false
+  }
+}
+
+async function saveAttendance() {
+  savingAttendance.value = true
+  attendanceError.value = null
+  const id = route.params.id
+  const url = `/api/trainings/${id}/attendance_bulk/`
+  lastUrl.value = url
+  try {
+    const payload = attendanceRows.value.map((r) => ({
+      athlete: r.athlete_id,
+      status: r.status,
+      checkin_time: null,
+    }))
+    await http.post(url, payload)
+    await fetchDashboard()
+  } catch (e: any) {
+    const status = e?.response?.status
+    attendanceError.value = status ? `Falha ao salvar presença (HTTP ${status}).` : 'Falha ao salvar presença.'
+    console.error(e)
+  } finally {
+    savingAttendance.value = false
+  }
+}
+
+async function addDrill() {
+  savingDrill.value = true
+  drillError.value = null
+
+  const id = route.params.id
+  const url = `/api/trainings/${id}/drills_bulk/`
+  lastUrl.value = url
+
+  try {
+    const payload = [{
+      drill: newDrill.value.drill,
+      name_override: newDrill.value.name_override || null,
+      order: Number(newDrill.value.order || 1),
+      description: newDrill.value.description || null,
+      max_score: Number(newDrill.value.max_score || 10),
+      weight: Number(newDrill.value.weight || 1),
+    }]
+    await http.post(url, payload)
+
+    newDrill.value = {
+      drill: null,
+      name_override: '',
+      order: 1,
+      description: '',
+      max_score: 10,
+      weight: 1,
+    }
+
+    await fetchDashboard()
+  } catch (e: any) {
+    const status = e?.response?.status
+    drillError.value = status ? `Falha ao adicionar drill (HTTP ${status}).` : 'Falha ao adicionar drill.'
+    console.error(e)
+  } finally {
+    savingDrill.value = false
+  }
+}
+
+async function deleteDrill(trainingDrillId: number) {
+  deletingDrillId.value = trainingDrillId
+  drillError.value = null
+  try {
+    await http.delete(`/api/trainings/drills/${trainingDrillId}/`)
+    await fetchDashboard()
+  } catch (e: any) {
+    const status = e?.response?.status
+    drillError.value = status ? `Falha ao remover drill (HTTP ${status}).` : 'Falha ao remover drill.'
+    console.error(e)
+  } finally {
+    deletingDrillId.value = null
   }
 }
 
@@ -154,4 +423,14 @@ async function downloadPdf() {
 }
 
 onMounted(fetchDashboard)
+
+watch(
+  () => dashboard.value,
+  (val) => {
+    if (val) fetchAttendanceEditorData()
+  },
+  { immediate: false }
+)
+
+onMounted(fetchCatalog)
 </script>

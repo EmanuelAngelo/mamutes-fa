@@ -13,6 +13,7 @@
               <th>Nome</th>
               <th>Camisa</th>
               <th>Posição</th>
+              <th>Ativo</th>
               <th></th>
             </tr>
           </thead>
@@ -21,6 +22,7 @@
               <td>{{ a.name }}</td>
               <td>{{ a.jersey_number || '-' }}</td>
               <td>{{ a.current_position || '-' }}</td>
+              <td>{{ a.is_active ? 'Sim' : 'Não' }}</td>
               <td>
                 <v-btn size="small" variant="tonal" @click="edit(a)">
                   Editar
@@ -40,8 +42,68 @@
         <v-card-title>{{ editing ? 'Editar' : 'Novo' }} Atleta</v-card-title>
         <v-card-text>
           <v-text-field v-model="form.name" label="Nome" />
-          <v-text-field v-model="form.jersey_number" label="Camisa" type="number" />
-          <v-text-field v-model="form.current_position" label="Posição Atual" />
+
+          <v-row>
+            <v-col cols="12" md="4">
+              <v-text-field v-model.number="form.jersey_number" label="Camisa" type="number" />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="form.current_position"
+                :items="positionItems"
+                item-title="label"
+                item-value="value"
+                label="Posição Atual"
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="form.desired_position"
+                :items="positionItems"
+                item-title="label"
+                item-value="value"
+                label="Posição Desejada"
+                clearable
+              />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model="form.birth_date" label="Data de nascimento (YYYY-MM-DD)" />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field v-model="form.birth_city" label="Cidade de nascimento" />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.height_m" label="Altura (m)" type="number" />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.weight_kg" label="Peso (kg)" type="number" />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.user" label="User ID (opcional)" type="number" />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-switch v-model="form.is_active" label="Ativo" inset />
+            </v-col>
+          </v-row>
+
+          <v-textarea v-model="form.career_notes" label="Observações" />
+
+          <v-file-input
+            v-model="form.photo"
+            label="Foto (opcional)"
+            accept="image/*"
+            prepend-icon=""
+          />
         </v-card-text>
         <v-card-actions class="justify-end">
           <v-btn variant="text" @click="dialog=false">Cancelar</v-btn>
@@ -63,8 +125,28 @@ const editing = ref<any | null>(null)
 const form = ref<any>({
   name: '',
   jersey_number: null,
-  current_position: '',
+  photo: null,
+  birth_date: '',
+  birth_city: '',
+  height_m: null,
+  weight_kg: null,
+  current_position: null,
+  desired_position: null,
+  career_notes: '',
+  is_active: true,
+  user: null,
 })
+
+const positionItems = [
+  { label: 'QB', value: 'QB' },
+  { label: 'C', value: 'C' },
+  { label: 'WR', value: 'WR' },
+  { label: 'RB', value: 'RB' },
+  { label: 'DB', value: 'DB' },
+  { label: 'R', value: 'R' },
+  { label: 'S', value: 'S' },
+  { label: 'CB', value: 'CB' },
+]
 
 async function fetchAthletes() {
   const { data } = await http.get('/api/athletes/?ordering=name')
@@ -73,16 +155,46 @@ async function fetchAthletes() {
 
 function edit(a: any) {
   editing.value = a
-  form.value = { ...a }
+  form.value = {
+    ...a,
+    photo: null,
+    birth_date: a.birth_date ?? '',
+    birth_city: a.birth_city ?? '',
+    career_notes: a.career_notes ?? '',
+  }
   dialog.value = true
 }
 
 async function save() {
-  if (editing.value) {
-    await http.patch(`/api/athletes/${editing.value.id}/`, form.value)
+  const hasPhoto = form.value.photo instanceof File
+  const endpoint = editing.value ? `/api/athletes/${editing.value.id}/` : '/api/athletes/'
+
+  if (hasPhoto) {
+    const fd = new FormData()
+    for (const [k, v] of Object.entries(form.value)) {
+      if (v === null || v === undefined || v === '') continue
+      if (k === 'photo') {
+        fd.append('photo', v as File)
+      } else {
+        fd.append(k, String(v))
+      }
+    }
+
+    if (editing.value) {
+      await http.patch(endpoint, fd)
+    } else {
+      await http.post(endpoint, fd)
+    }
   } else {
-    await http.post('/api/athletes/', form.value)
+    const payload = { ...form.value }
+    delete payload.photo
+    if (editing.value) {
+      await http.patch(endpoint, payload)
+    } else {
+      await http.post(endpoint, payload)
+    }
   }
+
   dialog.value = false
   editing.value = null
   fetchAthletes()
