@@ -2,8 +2,8 @@ import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 // URL principal (produção)
-// export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com'
-export const API_BASE_URL = 'http://127.0.0.1:8000/'
+export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com'
+// export const API_BASE_URL = 'http://127.0.0.1:8000/'
 
 // URL local (dev)
 // export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/'
