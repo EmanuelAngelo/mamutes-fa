@@ -63,6 +63,10 @@ Exemplos:
 - Dev: `http://127.0.0.1:8000/api`
 - Produção (PythonAnywhere): `https://ruthusky.pythonanywhere.com/api`
 
+Deploy na Vercel:
+- Opção A (recomendado): setar a env var `VITE_API_BASE_URL` na Vercel com `https://ruthusky.pythonanywhere.com/api` e redeploy.
+- Opção B: usar proxy via `frontend/vercel.json` (rewrite de `/api/*` para o PythonAnywhere). Nesse caso, o frontend pode chamar `https://mamutes-fa.vercel.app/api/...` e a Vercel encaminha.
+
 ```bash
 cd /c/Users/u12512/Projetos/mamutes_fa/frontend
 npm install
