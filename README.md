@@ -8,7 +8,7 @@ Sistema para gestão técnica do time (treinos, atletas, presença, drills, nota
 - Relatórios: PDF via ReportLab
 - Gráficos: Chart.js
 
-## Funcionalidades (atual)
+## Funcionalidades (atual).
 - CRUD de atletas (campos alinhados ao model do Django)
 - CRUD de treinos
 - Tela de detalhe do treino (coach):
