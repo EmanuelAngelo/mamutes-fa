@@ -4,10 +4,10 @@
       <v-app-bar-nav-icon @click="drawer = !drawer" />
       <v-app-bar-title>Mamutes F.A.</v-app-bar-title>
       <v-spacer />
-      <v-chip v-if="auth.me" class="mr-3" variant="tonal">
+      <v-chip v-if="auth.me" class="mr-3 d-none d-sm-flex" variant="tonal">
         {{ auth.me.username }} • {{ auth.me.role }}
       </v-chip>
-      <v-btn variant="tonal" @click="onLogout">Sair</v-btn>
+      <v-btn size="small" variant="tonal" @click="onLogout">Sair</v-btn>
     </v-app-bar>
 
     <v-navigation-drawer v-model="drawer" temporary>
@@ -25,7 +25,7 @@
     </v-navigation-drawer>
 
     <v-main>
-      <v-container class="py-6">
+      <v-container fluid class="py-4 py-md-6 px-2 px-md-6">
         <router-view />
       </v-container>
     </v-main>
@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '../stores/auth'
 
 const drawer = ref(false)
 const auth = useAuthStore()

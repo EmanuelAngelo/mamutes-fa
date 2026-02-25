@@ -18,7 +18,8 @@
               <strong>{{ latest.day_weighted_average ?? '-' }}</strong>
             </div>
 
-            <v-table density="comfortable">
+            <div class="table-scroll">
+              <v-table density="comfortable">
               <thead>
                 <tr>
                   <th>Drill</th>
@@ -33,7 +34,8 @@
                   <td>{{ d.comment ?? '-' }}</td>
                 </tr>
               </tbody>
-            </v-table>
+              </v-table>
+            </div>
           </div>
 
           <div v-else>
@@ -47,7 +49,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { http } from '@/api/http'
+import { http } from '../../api/http'
 
 const latest = ref<any>(null)
 const loading = ref(false)

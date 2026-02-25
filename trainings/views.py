@@ -315,6 +315,71 @@ class TrainingSessionViewSet(ModelViewSet):
             "score_map": score_map,
         })
 
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+    def coach_overview(self, request):
+        """Resumo para gráficos do Coach Dashboard (tendência + último treino)."""
+        try:
+            limit = int(request.query_params.get("limit", "8"))
+        except ValueError:
+            limit = 8
+        limit = max(1, min(limit, 30))
+
+        latest_qs = TrainingSession.objects.all().order_by("-date", "-id")
+        latest = latest_qs.first()
+
+        trend_trainings = list(latest_qs[:limit])
+        trend_trainings.reverse()  # chronological
+
+        trend_items = []
+        for t in trend_trainings:
+            ranking_items = self._compute_ranking_items(t)
+            valid_avgs = [x["weighted_average"] for x in ranking_items if x["weighted_average"] is not None]
+            training_weighted_avg = round(sum(valid_avgs) / len(valid_avgs), 2) if valid_avgs else 0
+            trend_items.append({
+                "label": str(t.date),
+                "value": float(training_weighted_avg),
+            })
+
+        latest_drills_items = []
+        latest_training_payload = None
+        if latest:
+            drills = list(TrainingDrill.objects.filter(training=latest).order_by("order", "id"))
+            drill_avg_qs = (
+                DrillScore.objects
+                .filter(training_drill__training=latest)
+                .values("training_drill_id")
+                .annotate(avg_score=Avg("score"))
+            )
+            drill_avg_map = {
+                row["training_drill_id"]: (
+                    round(float(row["avg_score"]), 2) if row["avg_score"] is not None else 0
+                )
+                for row in drill_avg_qs
+            }
+
+            for d in drills:
+                latest_drills_items.append({
+                    "label": d.name,
+                    "value": float(drill_avg_map.get(d.id, 0)),
+                })
+
+            ranking_items = self._compute_ranking_items(latest)
+            valid_avgs = [x["weighted_average"] for x in ranking_items if x["weighted_average"] is not None]
+            latest_training_weighted_avg = round(sum(valid_avgs) / len(valid_avgs), 2) if valid_avgs else None
+
+            latest_training_payload = {
+                "id": latest.id,
+                "date": latest.date,
+                "location": latest.location,
+                "training_weighted_average": latest_training_weighted_avg,
+            }
+
+        return Response({
+            "trend": trend_items,
+            "latest_training": latest_training_payload,
+            "latest_drills": latest_drills_items,
+        })
+
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")
     def export_pdf(self, request, pk=None):
         return _export_pdf_impl(self, request, pk)

@@ -2,6 +2,12 @@
   <Bar v-if="data" :data="data" :options="options" />
 </template>
 
+<script lang="ts">
+export default {
+  name: 'BarChart',
+}
+</script>
+
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Bar } from 'vue-chartjs'

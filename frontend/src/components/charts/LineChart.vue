@@ -2,6 +2,12 @@
   <Line v-if="data" :data="data" :options="options" />
 </template>
 
+<script lang="ts">
+export default {
+  name: 'LineChart',
+}
+</script>
+
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Line } from 'vue-chartjs'

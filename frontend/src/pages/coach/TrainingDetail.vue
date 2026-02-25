@@ -37,9 +37,9 @@
       </v-card>
 
       <v-card class="mb-4">
-        <v-card-title class="d-flex align-center justify-space-between">
+        <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Lista de presença
-          <v-btn variant="tonal" :loading="savingAttendance" @click="saveAttendance">
+          <v-btn class="mt-2 mt-sm-0" variant="tonal" :loading="savingAttendance" @click="saveAttendance">
             Salvar presença
           </v-btn>
         </v-card-title>
@@ -50,7 +50,8 @@
 
           <v-progress-circular v-if="loadingAttendance" indeterminate />
 
-          <v-table v-else>
+          <div v-else class="table-scroll">
+            <v-table>
             <thead>
               <tr>
                 <th>Atleta</th>
@@ -64,7 +65,7 @@
                 <td>{{ row.athlete_name }}</td>
                 <td>{{ row.jersey_number || '-' }}</td>
                 <td>{{ row.position || '-' }}</td>
-                <td style="min-width: 180px">
+                <td>
                   <v-select
                     v-model="row.status"
                     :items="attendanceStatusItems"
@@ -77,14 +78,15 @@
                 </td>
               </tr>
             </tbody>
-          </v-table>
+            </v-table>
+          </div>
         </v-card-text>
       </v-card>
 
       <v-card class="mb-4">
-        <v-card-title class="d-flex align-center justify-space-between">
+        <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Drills do treino
-          <v-btn variant="tonal" :loading="savingDrill" @click="addDrill">
+          <v-btn class="mt-2 mt-sm-0" variant="tonal" :loading="savingDrill" @click="addDrill">
             Adicionar drill
           </v-btn>
         </v-card-title>
@@ -123,7 +125,8 @@
 
           <v-divider class="my-3" />
 
-          <v-table>
+          <div class="table-scroll">
+            <v-table>
             <thead>
               <tr>
                 <th>Ordem</th>
@@ -154,14 +157,78 @@
                 </td>
               </tr>
             </tbody>
-          </v-table>
+            </v-table>
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <v-card class="mb-4">
+        <v-card-title class="d-flex flex-wrap align-center justify-space-between">
+          Avaliação individual
+          <v-btn
+            class="mt-2 mt-sm-0"
+            color="primary"
+            variant="tonal"
+            :loading="savingScore"
+            @click="saveScore"
+          >
+            Salvar avaliação
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-alert v-if="scoreError" type="error" variant="tonal" class="mb-3">
+            {{ scoreError }}
+          </v-alert>
+
+          <v-row>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="scoreForm.athlete_id"
+                :items="scoreAthleteItems"
+                item-title="label"
+                item-value="value"
+                label="Atleta"
+                clearable
+              />
+            </v-col>
+
+            <v-col cols="12" md="5">
+              <v-select
+                v-model="scoreForm.training_drill_id"
+                :items="scoreDrillItems"
+                item-title="label"
+                item-value="value"
+                label="Drill"
+                clearable
+              />
+            </v-col>
+
+            <v-col cols="12" md="3">
+              <v-text-field
+                v-model.number="scoreForm.score"
+                type="number"
+                label="Nota"
+                :hint="selectedScoreDrill ? `Max: ${selectedScoreDrill.max_score}` : undefined"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12">
+              <v-textarea v-model="scoreForm.comment" label="Comentário (opcional)" />
+            </v-col>
+          </v-row>
+
+          <div class="text-body-2 text-medium-emphasis" v-if="existingScore">
+            Já existe avaliação para esta combinação. Ao salvar, ela será atualizada.
+          </div>
         </v-card-text>
       </v-card>
 
       <v-card class="mb-4">
         <v-card-title>Ranking</v-card-title>
         <v-card-text>
-          <v-table>
+          <div class="table-scroll">
+            <v-table>
             <thead>
               <tr>
                 <th>#</th>
@@ -178,14 +245,16 @@
                 <td>{{ r.weighted_average ?? '-' }}</td>
               </tr>
             </tbody>
-          </v-table>
+            </v-table>
+          </div>
         </v-card-text>
       </v-card>
 
       <v-card>
         <v-card-title>Presença</v-card-title>
         <v-card-text>
-          <v-table>
+          <div class="table-scroll">
+            <v-table>
             <thead>
               <tr>
                 <th>Atleta</th>
@@ -198,7 +267,8 @@
                 <td>{{ a.status }}</td>
               </tr>
             </tbody>
-          </v-table>
+            </v-table>
+          </div>
         </v-card-text>
       </v-card>
     </div>
@@ -210,9 +280,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { http } from '@/api/http'
+import { http } from '../../api/http'
 
 const route = useRoute()
 
@@ -233,6 +303,16 @@ const savingDrill = ref(false)
 const drillError = ref<string | null>(null)
 const deletingDrillId = ref<number | null>(null)
 
+const savingScore = ref(false)
+const scoreError = ref<string | null>(null)
+
+const scoreForm = ref({
+  athlete_id: null as number | null,
+  training_drill_id: null as number | null,
+  score: null as number | null,
+  comment: '',
+})
+
 const attendanceStatusItems = [
   { label: 'Presente', value: 'PRESENT' },
   { label: 'Ausente', value: 'ABSENT' },
@@ -248,6 +328,47 @@ const newDrill = ref({
   max_score: 10,
   weight: 1,
 })
+
+const scoreAthleteItems = computed(() => {
+  const att = dashboard.value?.attendance ?? []
+  return att.map((a: any) => ({
+    label: `${a.athlete_name}${a.jersey_number ? ` #${a.jersey_number}` : ''}`,
+    value: a.athlete_id,
+  }))
+})
+
+const scoreDrillItems = computed(() => {
+  const drills = dashboard.value?.drills ?? []
+  return drills.map((d: any) => ({
+    label: `${d.order}. ${d.name}`,
+    value: d.training_drill_id,
+  }))
+})
+
+const selectedScoreDrill = computed(() => {
+  const id = scoreForm.value.training_drill_id
+  if (!id) return null
+  return (dashboard.value?.drills ?? []).find((d: any) => d.training_drill_id === id) ?? null
+})
+
+const existingScore = computed(() => {
+  const athleteId = scoreForm.value.athlete_id
+  const drillId = scoreForm.value.training_drill_id
+  if (!athleteId || !drillId) return null
+  const map = dashboard.value?.score_map ?? {}
+  return map[String(athleteId)]?.[String(drillId)] ?? null
+})
+
+function syncScoreFormFromExisting() {
+  const ex = existingScore.value
+  if (ex) {
+    scoreForm.value.score = typeof ex.score === 'number' ? ex.score : Number(ex.score)
+    scoreForm.value.comment = ex.comment ?? ''
+    return
+  }
+  scoreForm.value.score = null
+  scoreForm.value.comment = ''
+}
 
 async function fetchDashboard() {
   loading.value = true
@@ -422,6 +543,51 @@ async function downloadPdf() {
   }
 }
 
+async function saveScore() {
+  scoreError.value = null
+  const athleteId = scoreForm.value.athlete_id
+  const trainingDrillId = scoreForm.value.training_drill_id
+  const score = scoreForm.value.score
+
+  if (!athleteId || !trainingDrillId) {
+    scoreError.value = 'Selecione atleta e drill.'
+    return
+  }
+
+  if (score === null || Number.isNaN(Number(score))) {
+    scoreError.value = 'Informe uma nota.'
+    return
+  }
+
+  const maxScore = selectedScoreDrill.value?.max_score
+  if (typeof maxScore === 'number' && Number(score) > maxScore) {
+    scoreError.value = `Nota maior que o máximo (${maxScore}).`
+    return
+  }
+
+  savingScore.value = true
+  const id = route.params.id
+  const url = `/api/trainings/${id}/scores_bulk/`
+  lastUrl.value = url
+  try {
+    await http.post(url, [{
+      training_drill: trainingDrillId,
+      athlete: athleteId,
+      score: Number(score),
+      comment: scoreForm.value.comment?.trim() ? scoreForm.value.comment.trim() : null,
+    }])
+
+    await fetchDashboard()
+    syncScoreFormFromExisting()
+  } catch (e: any) {
+    const status = e?.response?.status
+    scoreError.value = status ? `Falha ao salvar avaliação (HTTP ${status}).` : 'Falha ao salvar avaliação.'
+    console.error(e)
+  } finally {
+    savingScore.value = false
+  }
+}
+
 onMounted(fetchDashboard)
 
 watch(
@@ -433,4 +599,9 @@ watch(
 )
 
 onMounted(fetchCatalog)
+
+watch(
+  () => [scoreForm.value.athlete_id, scoreForm.value.training_drill_id],
+  () => syncScoreFormFromExisting()
+)
 </script>
