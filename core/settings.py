@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,9 +25,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-6l3&8*_o04!t7s_fuur33in5x)^2r*l*44wo99q%t%^46tg)&n'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 
-ALLOWED_HOSTS = []
+_default_allowed_hosts = ["localhost", "127.0.0.1", "ruthusky.pythonanywhere.com"]
+_env_allowed_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = _env_allowed_hosts or _default_allowed_hosts
 
 
 # Application definition
