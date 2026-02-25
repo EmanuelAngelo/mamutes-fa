@@ -34,8 +34,8 @@ settings_local.py
 db.sqlite3
 *.sqlite3
 
-# Uploads (usually environment-specific)
-media/
+# # Uploads (usually environment-specific)
+# media/
 
 # --- Node / Vue (Vite) ---
 node_modules/

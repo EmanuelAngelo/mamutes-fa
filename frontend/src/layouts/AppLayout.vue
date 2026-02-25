@@ -21,6 +21,9 @@
           <v-list-item title="Treinos" :to="{ name: 'coach-trainings' }" />
           <v-list-item title="Atletas" :to="{ name: 'coach-athletes' }" />
         </template>
+
+        <v-divider class="my-2" />
+        <v-list-item title="Trocar senha" @click="openChangePassword" />
       </v-list>
     </v-navigation-drawer>
 
@@ -29,6 +32,8 @@
         <router-view />
       </v-container>
     </v-main>
+
+    <ChangePasswordDialog v-model="changePasswordOpen" />
   </v-app>
 </template>
 
@@ -36,10 +41,17 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
 
 const drawer = ref(false)
+const changePasswordOpen = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
+
+function openChangePassword() {
+  drawer.value = false
+  changePasswordOpen.value = true
+}
 
 async function onLogout() {
   await auth.logout()
