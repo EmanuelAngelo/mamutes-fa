@@ -204,7 +204,7 @@ async function save() {
 
 async function remove(a: any) {
   if (!confirm(`Excluir ${a.name}?`)) return
-  await http.delete(`/api/athletes/${a.id}/`)
+  await http.delete(`/athletes/${a.id}/`)
   await fetchAthletes()
 }
 

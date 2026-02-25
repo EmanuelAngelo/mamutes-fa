@@ -376,7 +376,7 @@ async function fetchDashboard() {
   dashboard.value = null
 
   const id = route.params.id
-  const url = `/api/trainings/${id}/coach_dashboard/`
+  const url = `/trainings/${id}/coach_dashboard/`
   lastUrl.value = url
 
   try {
@@ -445,7 +445,7 @@ async function saveAttendance() {
   savingAttendance.value = true
   attendanceError.value = null
   const id = route.params.id
-  const url = `/api/trainings/${id}/attendance_bulk/`
+  const url = `/trainings/${id}/attendance_bulk/`
   lastUrl.value = url
   try {
     const payload = attendanceRows.value.map((r) => ({
@@ -469,7 +469,7 @@ async function addDrill() {
   drillError.value = null
 
   const id = route.params.id
-  const url = `/api/trainings/${id}/drills_bulk/`
+  const url = `/trainings/${id}/drills_bulk/`
   lastUrl.value = url
 
   try {
@@ -506,7 +506,7 @@ async function deleteDrill(trainingDrillId: number) {
   deletingDrillId.value = trainingDrillId
   drillError.value = null
   try {
-    await http.delete(`/api/trainings/drills/${trainingDrillId}/`)
+    await http.delete(`/trainings/drills/${trainingDrillId}/`)
     await fetchDashboard()
   } catch (e: any) {
     const status = e?.response?.status
@@ -520,7 +520,7 @@ async function deleteDrill(trainingDrillId: number) {
 async function downloadPdf() {
   downloading.value = true
   const id = route.params.id
-  const url = `/api/trainings/${id}/export/pdf/`
+  const url = `/trainings/${id}/export/pdf/`
   lastUrl.value = url
 
   try {
@@ -567,7 +567,7 @@ async function saveScore() {
 
   savingScore.value = true
   const id = route.params.id
-  const url = `/api/trainings/${id}/scores_bulk/`
+  const url = `/trainings/${id}/scores_bulk/`
   lastUrl.value = url
   try {
     await http.post(url, [{

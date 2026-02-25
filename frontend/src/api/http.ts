@@ -2,7 +2,7 @@ import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 // URL principal (produção)
-export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com/api'
+export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com'
 
 // URL local (dev)
 // export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api'
@@ -12,7 +12,7 @@ function resolveApiBaseUrl(): string {
     const host = window.location.hostname
     // if (host === 'localhost' || host === '127.0.0.1') return LOCAL_API_BASE_URL
   }
-  return API_BASE_URL
+  return joinUrl(API_BASE_URL, 'api')
 }
 
 function joinUrl(base: string, path: string): string {
@@ -44,6 +44,10 @@ export const http = axios.create({
 })
 
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (typeof config.url === 'string') {
+    if (config.url.startsWith('/api/')) config.url = config.url.slice(4)
+    if (config.url.startsWith('api/')) config.url = config.url.slice(3)
+  }
   const token = getAccessToken()
   if (token) {
     config.headers = config.headers ?? {}
