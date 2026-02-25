@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(username: string, password: string) {
-      const { data } = await http.post('/api/accounts/login/', { username, password })
+      const { data } = await http.post('/accounts/login/', { username, password })
       this.accessToken = data.access
       this.refreshToken = data.refresh
       localStorage.setItem('accessToken', this.accessToken!)
@@ -41,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchMe() {
       this.loadingMe = true
       try {
-        const { data } = await http.get('/api/accounts/me/')
+        const { data } = await http.get('/accounts/me/')
         this.me = data
       } finally {
         this.loadingMe = false
@@ -51,7 +51,7 @@ export const useAuthStore = defineStore('auth', {
     async refresh(): Promise<boolean> {
       if (!this.refreshToken) return false
       try {
-        const { data } = await http.post('/api/accounts/refresh/', { refresh: this.refreshToken })
+        const { data } = await http.post('/accounts/refresh/', { refresh: this.refreshToken })
         this.accessToken = data.access
         localStorage.setItem('accessToken', this.accessToken!)
         return true

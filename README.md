@@ -57,7 +57,11 @@ Observações:
 ### Frontend (Vue)
 Servidor padrão: `http://localhost:3000`
 
-O frontend lê a base da API por `VITE_API_BASE_URL` (arquivo `frontend/.env`).
+O frontend lê a base da API por `VITE_API_BASE_URL` (arquivo `frontend/.env`) e ela deve apontar para o prefixo `/api`.
+
+Exemplos:
+- Dev: `http://127.0.0.1:8000/api`
+- Produção (PythonAnywhere): `https://ruthusky.pythonanywhere.com/api`
 
 ```bash
 cd /c/Users/u12512/Projetos/mamutes_fa/frontend

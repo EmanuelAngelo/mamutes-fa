@@ -85,12 +85,12 @@ watch(dialog, (isOpen) => {
 })
 
 async function fetchTrainings() {
-  const { data } = await http.get('/api/trainings/?ordering=-date')
+  const { data } = await http.get('/trainings/?ordering=-date')
   trainings.value = data
 }
 
 async function createTraining() {
-  await http.post('/api/trainings/', form.value)
+  await http.post('/trainings/', form.value)
   dialog.value = false
   form.value = emptyForm()
   fetchTrainings()

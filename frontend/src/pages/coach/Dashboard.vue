@@ -70,7 +70,7 @@ async function fetchOverview() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await http.get('/api/trainings/coach_overview/?limit=8')
+    const { data } = await http.get('/trainings/coach_overview/?limit=8')
     trendItems.value = (data?.trend ?? []) as Item[]
     drillItems.value = (data?.latest_drills ?? []) as Item[]
     latestTraining.value = data?.latest_training ?? null

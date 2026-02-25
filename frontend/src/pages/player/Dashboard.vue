@@ -57,7 +57,7 @@ const loading = ref(false)
 async function fetchLatest() {
   loading.value = true
   try {
-    const { data } = await http.get('/api/dashboard/my/latest-training/')
+    const { data } = await http.get('/dashboard/my/latest-training/')
     latest.value = data
   } catch (err) {
     console.error(err)

@@ -148,7 +148,7 @@ const positionItems = [
 ]
 
 async function fetchAthletes() {
-  const { data } = await http.get('/api/athletes/?ordering=name')
+  const { data } = await http.get('/athletes/?ordering=name')
   athletes.value = data
 }
 
@@ -179,7 +179,7 @@ watch(dialog, (isOpen) => {
 
 async function save() {
   const hasPhoto = form.value.photo instanceof File
-  const endpoint = editing.value ? `/api/athletes/${editing.value.id}/` : '/api/athletes/'
+  const endpoint = editing.value ? `/athletes/${editing.value.id}/` : '/athletes/'
 
   if (hasPhoto) {
     const fd = new FormData()

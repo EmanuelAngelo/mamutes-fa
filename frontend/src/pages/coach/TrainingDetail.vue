@@ -399,7 +399,7 @@ async function fetchDashboard() {
 
 async function fetchCatalog() {
   try {
-    const { data } = await http.get('/api/trainings/catalog/?ordering=name')
+    const { data } = await http.get('/trainings/catalog/?ordering=name')
     catalog.value = data
   } catch (e) {
     console.error(e)
@@ -429,7 +429,7 @@ async function fetchAttendanceEditorData() {
   attendanceError.value = null
   try {
     const [{ data: athletes }] = await Promise.all([
-      http.get('/api/athletes/?is_active=true&ordering=name'),
+      http.get('/athletes/?is_active=true&ordering=name'),
     ])
     buildAttendanceRowsFrom(athletes, dashboard.value?.attendance)
   } catch (e: any) {

@@ -4,8 +4,15 @@ import { useAuthStore } from '../stores/auth'
 function getApiBaseUrl(): string {
   const envBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
   if (envBase) return envBase.replace(/\/$/, '')
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin
+  if (typeof window !== 'undefined' && window.location?.origin) return `${window.location.origin}/api`
   return ''
+}
+
+export function apiPath(path: string): string {
+  const base = getApiBaseUrl()
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (!base) return normalizedPath
+  return `${base}${normalizedPath}`
 }
 
 export const http = axios.create({
