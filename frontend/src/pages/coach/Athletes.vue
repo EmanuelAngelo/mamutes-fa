@@ -100,12 +100,22 @@
 
           <v-row>
             <v-col cols="12" md="6">
-              <v-text-field v-model.number="form.user" label="User ID (opcional)" type="number" />
+              <v-autocomplete
+                v-model="form.user"
+                :items="users"
+                :loading="usersLoading"
+                item-title="label"
+                item-value="id"
+                label="Usuário (opcional)"
+                clearable
+              />
             </v-col>
             <v-col cols="12" md="6">
               <v-switch v-model="form.is_active" label="Ativo" inset />
             </v-col>
           </v-row>
+
+          <v-btn variant="tonal" size="small" class="mb-4" @click="openCreateUser">Criar usuário</v-btn>
 
           <v-textarea v-model="form.career_notes" label="Observações" />
 
@@ -114,6 +124,31 @@
         <v-card-actions class="justify-end">
           <v-btn variant="text" @click="dialog = false">Cancelar</v-btn>
           <v-btn color="primary" @click="save">Salvar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="createUserDialog" :fullscreen="display.smAndDown.value" max-width="560" scrollable>
+      <v-card>
+        <v-card-title>Novo usuário</v-card-title>
+        <v-card-text>
+          <v-alert v-if="createUserError" type="error" variant="tonal" class="mb-3">{{ createUserError }}</v-alert>
+
+          <v-text-field v-model="createUserForm.username" label="Username" />
+          <v-text-field v-model="createUserForm.email" label="Email (opcional)" />
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model="createUserForm.first_name" label="Nome (opcional)" />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field v-model="createUserForm.last_name" label="Sobrenome (opcional)" />
+            </v-col>
+          </v-row>
+          <v-text-field v-model="createUserForm.password" label="Senha" type="password" />
+        </v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn variant="text" :disabled="createUserLoading" @click="createUserDialog = false">Cancelar</v-btn>
+          <v-btn color="primary" :loading="createUserLoading" @click="createUser">Criar e vincular</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -126,10 +161,35 @@ import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
 
 const athletes = ref<any[]>([])
+type UserItem = {
+  id: number
+  username: string
+  email?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  role?: string
+  athlete_id?: number | null
+  label: string
+}
+
+const users = ref<UserItem[]>([])
+const usersLoading = ref(false)
+
 const dialog = ref(false)
 const editing = ref<any | null>(null)
 const display = useDisplay()
 const birthDateMenu = ref(false)
+
+const createUserDialog = ref(false)
+const createUserLoading = ref(false)
+const createUserError = ref<string | null>(null)
+const createUserForm = ref({
+  username: '',
+  email: '',
+  first_name: '',
+  last_name: '',
+  password: '',
+})
 
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -191,10 +251,28 @@ async function fetchAthletes() {
   athletes.value = data
 }
 
+function toUserLabel(u: any): string {
+  const email = u.email ? ` • ${u.email}` : ''
+  return `${u.username}${email}`
+}
+
+async function fetchUsers(includeId?: number | null) {
+  usersLoading.value = true
+  try {
+    const params: any = { ordering: 'username', unlinked: 1 }
+    if (includeId) params.include = includeId
+    const { data } = await http.get('/accounts/users/', { params })
+    users.value = (data || []).map((u: any) => ({ ...u, label: toUserLabel(u) }))
+  } finally {
+    usersLoading.value = false
+  }
+}
+
 function openNew() {
   editing.value = null
   form.value = emptyForm()
   dialog.value = true
+  fetchUsers(null)
 }
 
 function edit(a: any) {
@@ -207,6 +285,7 @@ function edit(a: any) {
     career_notes: a.career_notes ?? '',
   }
   dialog.value = true
+  fetchUsers(a.user)
 }
 
 watch(dialog, (isOpen) => {
@@ -215,6 +294,43 @@ watch(dialog, (isOpen) => {
     form.value = emptyForm()
   }
 })
+
+function openCreateUser() {
+  createUserError.value = null
+  createUserForm.value = { username: '', email: '', first_name: '', last_name: '', password: '' }
+  createUserDialog.value = true
+}
+
+async function createUser() {
+  createUserError.value = null
+  if (!createUserForm.value.username.trim() || !createUserForm.value.password) {
+    createUserError.value = 'Informe username e senha.'
+    return
+  }
+
+  createUserLoading.value = true
+  try {
+    const { data } = await http.post('/accounts/users/', {
+      username: createUserForm.value.username.trim(),
+      password: createUserForm.value.password,
+      email: createUserForm.value.email.trim() || '',
+      first_name: createUserForm.value.first_name.trim() || '',
+      last_name: createUserForm.value.last_name.trim() || '',
+    })
+    const item: UserItem = { ...data, label: toUserLabel(data) }
+    users.value = [...users.value, item].sort((a, b) => a.username.localeCompare(b.username))
+    form.value.user = item.id
+    createUserDialog.value = false
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.username ||
+      e?.response?.data?.detail ||
+      'Não foi possível criar o usuário.'
+    createUserError.value = Array.isArray(msg) ? msg.join(' ') : String(msg)
+  } finally {
+    createUserLoading.value = false
+  }
+}
 
 async function save() {
   const hasPhoto = form.value.photo instanceof File
@@ -248,4 +364,5 @@ async function remove(a: any) {
 }
 
 onMounted(fetchAthletes)
+onMounted(() => fetchUsers(null))
 </script>
