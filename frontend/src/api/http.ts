@@ -1,8 +1,15 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../stores/auth'
 
+function getApiBaseUrl(): string {
+  const envBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+  if (envBase) return envBase.replace(/\/$/, '')
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin
+  return ''
+}
+
 export const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 20000,
 })
 
