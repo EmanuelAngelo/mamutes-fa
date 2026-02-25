@@ -18,7 +18,7 @@
             </thead>
             <tbody>
               <tr v-for="t in trainings" :key="t.id">
-                <td>{{ t.date }}</td>
+                <td>{{ formatDateBR(t.date) }}</td>
                 <td>{{ t.location || '-' }}</td>
                 <td>
                   <v-btn
@@ -41,7 +41,20 @@
       <v-card>
         <v-card-title>Novo Treino</v-card-title>
         <v-card-text>
-          <v-text-field v-model="form.date" label="Data (YYYY-MM-DD)" />
+          <v-menu v-model="dateMenu" :close-on-content-click="false" location="bottom">
+            <template #activator="{ props }">
+              <v-text-field
+                v-bind="props"
+                :model-value="formatDateBR(form.date)"
+                label="Data"
+                readonly
+                clearable
+                prepend-inner-icon="mdi-calendar"
+                @click:clear="clearDate"
+              />
+            </template>
+            <v-date-picker :model-value="form.date" @update:model-value="onPickDate" />
+          </v-menu>
           <v-text-field v-model="form.location" label="Local" />
           <v-textarea v-model="form.notes" label="Observações" />
         </v-card-text>
@@ -62,6 +75,32 @@ import { http } from '../../api/http'
 const trainings = ref<any[]>([])
 const dialog = ref(false)
 const display = useDisplay()
+const dateMenu = ref(false)
+
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
+  if (!m) return iso
+  const [y, mm, dd] = iso.split('-')
+  return `${dd}/${mm}/${y}`
+}
+
+function clearDate() {
+  form.value.date = ''
+}
+
+function normalizeDate(value: unknown): string {
+  const v = Array.isArray(value) ? value[0] : value
+  if (!v) return ''
+  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  if (typeof v === 'string') return v.includes('T') ? v.slice(0, 10) : v
+  return String(v)
+}
+
+function onPickDate(value: unknown) {
+  form.value.date = normalizeDate(value)
+  dateMenu.value = false
+}
 
 function emptyForm() {
   return {

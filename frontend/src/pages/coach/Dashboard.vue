@@ -25,7 +25,7 @@
           <v-card-title class="d-flex flex-wrap align-center justify-space-between">
             Tendência (últimos treinos)
             <div v-if="latestTraining" class="text-body-2 text-medium-emphasis">
-              Último: {{ latestTraining.date }} • {{ latestTraining.training_weighted_average ?? '-' }}
+              Último: {{ formatDateBR(latestTraining.date) }} • {{ latestTraining.training_weighted_average ?? '-' }}
             </div>
           </v-card-title>
           <v-card-text>
@@ -57,6 +57,13 @@ import { onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import { http } from '../../api/http'
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
+  if (!m) return iso
+  const [y, mm, dd] = iso.split('-')
+  return `${dd}/${mm}/${y}`
+}
 
 type Item = { label: string; value: number }
 

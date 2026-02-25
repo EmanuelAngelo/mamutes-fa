@@ -21,7 +21,7 @@
 
     <div v-else-if="dashboard">
       <v-card class="mb-4">
-        <v-card-title>Treino {{ dashboard.training.date }}</v-card-title>
+        <v-card-title>Treino {{ formatDateBR(dashboard.training.date) }}</v-card-title>
         <v-card-text>
           <div><strong>Local:</strong> {{ dashboard.training.location || '-' }}</div>
           <div>
@@ -283,6 +283,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '../../api/http'
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
+  if (!m) return iso
+  const [y, mm, dd] = iso.split('-')
+  return `${dd}/${mm}/${y}`
+}
 
 const route = useRoute()
 

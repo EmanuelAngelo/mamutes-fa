@@ -69,7 +69,20 @@
 
           <v-row>
             <v-col cols="12" md="6">
-              <v-text-field v-model="form.birth_date" label="Data de nascimento (YYYY-MM-DD)" />
+              <v-menu v-model="birthDateMenu" :close-on-content-click="false" location="bottom">
+                <template #activator="{ props }">
+                  <v-text-field
+                    v-bind="props"
+                    :model-value="formatDateBR(form.birth_date)"
+                    label="Data de nascimento"
+                    readonly
+                    clearable
+                    prepend-inner-icon="mdi-calendar"
+                    @click:clear="clearBirthDate"
+                  />
+                </template>
+                <v-date-picker :model-value="form.birth_date" @update:model-value="onPickBirthDate" />
+              </v-menu>
             </v-col>
             <v-col cols="12" md="6">
               <v-text-field v-model="form.birth_city" label="Cidade de nascimento" />
@@ -116,6 +129,32 @@ const athletes = ref<any[]>([])
 const dialog = ref(false)
 const editing = ref<any | null>(null)
 const display = useDisplay()
+const birthDateMenu = ref(false)
+
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
+  if (!m) return iso
+  const [y, mm, dd] = iso.split('-')
+  return `${dd}/${mm}/${y}`
+}
+
+function clearBirthDate() {
+  form.value.birth_date = ''
+}
+
+function normalizeDate(value: unknown): string {
+  const v = Array.isArray(value) ? value[0] : value
+  if (!v) return ''
+  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  if (typeof v === 'string') return v.includes('T') ? v.slice(0, 10) : v
+  return String(v)
+}
+
+function onPickBirthDate(value: unknown) {
+  form.value.birth_date = normalizeDate(value)
+  birthDateMenu.value = false
+}
 
 function emptyForm() {
   return {

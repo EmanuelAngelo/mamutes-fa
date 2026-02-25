@@ -10,7 +10,7 @@
         <div v-else>
           <div v-if="latest">
             <v-chip class="mb-3" variant="tonal">
-              Último treino: {{ latest.training.date }}
+              Último treino: {{ formatDateBR(latest.training.date) }}
             </v-chip>
 
             <div class="text-h5 mb-4">
@@ -50,6 +50,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { http } from '../../api/http'
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
+  if (!m) return iso
+  const [y, mm, dd] = iso.split('-')
+  return `${dd}/${mm}/${y}`
+}
 
 const latest = ref<any>(null)
 const loading = ref(false)
