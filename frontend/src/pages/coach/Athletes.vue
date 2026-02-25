@@ -35,7 +35,7 @@
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="dialog" :fullscreen="display.smAndDown" max-width="600" scrollable>
+    <v-dialog v-model="dialog" :fullscreen="display.smAndDown.value" max-width="600" scrollable>
       <v-card>
         <v-card-title>{{ editing ? 'Editar' : 'Novo' }} Atleta</v-card-title>
         <v-card-text>

@@ -37,7 +37,7 @@
     </v-card>
 
     <!-- Dialog Criar -->
-    <v-dialog v-model="dialog" :fullscreen="display.smAndDown" max-width="500" scrollable>
+    <v-dialog v-model="dialog" :fullscreen="display.smAndDown.value" max-width="500" scrollable>
       <v-card>
         <v-card-title>Novo Treino</v-card-title>
         <v-card-text>

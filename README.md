@@ -61,8 +61,8 @@ O frontend lê a base da API por `VITE_API_BASE_URL` (arquivo `frontend/.env`).
 
 ```bash
 cd /c/Users/u12512/Projetos/mamutes_fa/frontend
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ## Autenticação e roles
