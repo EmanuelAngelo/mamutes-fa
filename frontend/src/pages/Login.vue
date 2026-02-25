@@ -75,15 +75,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '../stores/auth'
+import { http } from '../api/http'
 
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
-const logoUrl = `${apiBaseUrl.replace(/\/$/, '')}/media/brand/logo.png`
+const apiBaseUrl = String(http.defaults.baseURL ?? '')
+const backendOrigin = apiBaseUrl.replace(/\/+$/, '').replace(/\/api\/?$/, '')
+const logoUrl = `${backendOrigin}/media/brand/logo.png`
 const showLogo = ref(true)
 
 const auth = useAuthStore()
