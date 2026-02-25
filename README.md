@@ -14,8 +14,21 @@ Sistema para gestão técnica do time (treinos, atletas, presença, drills, nota
 - Tela de detalhe do treino (coach):
   - lista de presença (salva via endpoint bulk)
   - drills do treino (adiciona via endpoint bulk e remove via endpoint de drills)
+  - avaliação individual (atleta + drill + nota + comentário)
   - dashboard do coach (ranking, médias, etc.)
   - exportação PDF do treino
+- Coach Dashboard (home do coach):
+  - gráficos de tendência (média do treino ao longo dos últimos treinos)
+  - gráfico de médias por drill (último treino)
+
+## Responsividade (mobile)
+- `AppLayout` com padding responsivo e conteúdo em container `fluid`.
+- Tabelas com rolagem horizontal (classe `.table-scroll`) para evitar overflow no mobile.
+- Dialogs de criação/edição em fullscreen no mobile (ex.: atletas e treinos).
+
+## UI (Login)
+- A imagem de fundo (`Time_1.jpg`) aparece **apenas na tela de login**.
+- Após login, a aplicação volta ao fundo padrão/escuro do Vuetify.
 
 ## Como rodar
 
@@ -70,13 +83,20 @@ Treinos:
 - `GET/POST /api/trainings/`
 - `GET/PATCH/DELETE /api/trainings/{id}/`
 
+Catálogo de drills:
+- `GET /api/trainings/catalog/`
+
 Coach (treino):
 - `GET /api/trainings/{id}/coach_dashboard/`
 - `POST /api/trainings/{id}/attendance_bulk/` (lista de presença)
 - `POST /api/trainings/{id}/drills_bulk/` (drills do treino)
+- `POST /api/trainings/{id}/scores_bulk/` (salvar/atualizar nota + comentário por atleta/drill)
 - `DELETE /api/trainings/drills/{training_drill_id}/` (remover drill do treino)
 - `GET /api/trainings/{id}/export/pdf/`
 - `GET /api/trainings/{id}/export/csv/`
+
+Coach (dashboard):
+- `GET /api/trainings/coach_overview/?limit=8` (dados para gráficos do Coach Dashboard)
 
 ## Branding do PDF
 Config em `core/settings.py`:
