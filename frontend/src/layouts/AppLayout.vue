@@ -20,6 +20,7 @@
           <v-list-item title="Coach Dashboard" :to="{ name: 'coach-dashboard' }" />
           <v-list-item title="Treinos" :to="{ name: 'coach-trainings' }" />
           <v-list-item title="Atletas" :to="{ name: 'coach-athletes' }" />
+          <v-list-item title="Catálogo de Drills" :to="{ name: 'coach-drills-catalog' }" />
         </template>
 
         <v-divider class="my-2" />

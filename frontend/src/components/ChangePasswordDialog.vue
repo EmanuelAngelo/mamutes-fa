@@ -47,6 +47,12 @@
   </v-dialog>
 </template>
 
+<script lang="ts">
+export default {
+  name: 'ChangePasswordDialog',
+}
+</script>
+
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { http } from '../api/http'

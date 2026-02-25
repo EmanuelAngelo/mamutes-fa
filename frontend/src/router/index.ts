@@ -43,6 +43,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/coach/Athletes.vue'),
         meta: { requiresAuth: true, roles: ['COACH', 'ADMIN'] },
       },
+      {
+        path: 'coach/drills-catalog',
+        name: 'coach-drills-catalog',
+        component: () => import('@/pages/coach/DrillCatalog.vue'),
+        meta: { requiresAuth: true, roles: ['COACH', 'ADMIN'] },
+      },
     ],
   },
 ]
