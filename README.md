@@ -1,48 +1,56 @@
 # Mamutes F.A. — Plataforma de Gestão de Flag Football
 
-Sistema para gestão técnica do time (treinos, atletas, presença, drills, notas, rankings e relatórios).
+Plataforma para gestão técnica do time: atletas, treinos, presença, drills, notas, rankings, dashboards e relatórios.
 
-**Stack atual**
-- Backend: Django 6 + Django REST Framework + SimpleJWT + SQLite
+## Stack
+- Backend: Django 5 + Django REST Framework + SimpleJWT + SQLite
 - Frontend: Vue 3 + Vuetify 4 + Vite + Pinia + Vue Router
-- Relatórios: PDF via ReportLab
-- Gráficos: Chart.js
+- Gráficos: Chart.js (`vue-chartjs`)
+- Relatórios: PDF/CSV (ReportLab + CSV)
 
-## Funcionalidades (atual).
-- CRUD de atletas (campos alinhados ao model do Django)
-- CRUD de treinos
-- Tela de detalhe do treino (coach):
-  - lista de presença (salva via endpoint bulk)
-  - drills do treino (adiciona via endpoint bulk e remove via endpoint de drills)
-  - avaliação individual (atleta + drill + nota + comentário)
-  - dashboard do coach (ranking, médias, etc.)
-  - exportação PDF do treino
-- Coach Dashboard (home do coach):
-  - gráficos de tendência (média do treino ao longo dos últimos treinos)
-  - gráfico de médias por drill (último treino)
+## O que já existe (até agora)
 
-## Responsividade (mobile)
-- `AppLayout` com padding responsivo e conteúdo em container `fluid`.
-- Tabelas com rolagem horizontal (classe `.table-scroll`) para evitar overflow no mobile.
-- Dialogs de criação/edição em fullscreen no mobile (ex.: atletas e treinos).
+### Auth e roles
+- Roles: `ADMIN`, `COACH`, `PLAYER`
+- Login JWT, refresh token, `me` e troca de senha no app
 
-## UI (Login)
-- A imagem de fundo (`Time_1.jpg`) aparece **apenas na tela de login**.
-- Após login, a aplicação volta ao fundo padrão/escuro do Vuetify.
+### Coach
+- Dashboard (overview):
+  - tendência da média ponderada do time nos últimos treinos
+  - média por drill do último treino
+  - insights de evolução entre os 2 últimos treinos (maior evolução e regressão)
+  - insights do último treino (drill mais difícil e atleta mais consistente)
+- Treinos:
+  - CRUD de sessões de treino
+  - detalhe do treino com presença, drills, matriz de notas e ranking (geral e por posição)
+  - bulk endpoints para presença/drills/notas
+  - exportação do treino em PDF e CSV
+- Atletas:
+  - CRUD de atletas com foto
+  - listagem em cards (layout “FIFA-style”) + métricas vindas da API
+  - métricas agregadas (`/api/athletes/stats/`) e `rating` por atleta
+- Catálogo de drills: CRUD básico
 
-## Como rodar
+### Player
+- Dashboard do player
+- Meu Perfil (com preview card e edição)
+- Atualização via `PATCH /api/athletes/me/` (inclui foto)
+
+### UI/UX
+- Layout com `NavigationDrawer` em modo `rail` (compacto) + header com perfil e toggle
+- Drawer usa a foto real do atleta (quando existir), com fallback para avatar por iniciais
+- Padrão visual: headers “sticky” com blur + cards `tonal` arredondados
+
+## Como rodar (dev)
 
 ### Backend (Django)
-Servidor padrão: `http://127.0.0.1:8000`
+API em: `http://127.0.0.1:8000/api`
 
 ```bash
-cd /c/Users/u12512/Projetos/mamutes_fa
-
-# (opcional) criar e ativar venv
+# na raiz do projeto
 python -m venv venv
 source venv/Scripts/activate
 
-# instalar deps (se o requirements.txt estiver preenchido)
 pip install -r requirements.txt
 
 python manage.py migrate
@@ -50,63 +58,67 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Observações:
-- O projeto usa SQLite por padrão (`db.sqlite3`).
-- Em dev, o CORS está liberado (`CORS_ALLOW_ALL_ORIGINS=True`).
+Notas:
+- Banco padrão: `db.sqlite3`
+- Em `DEBUG=True`, mídia é servida via Django (`/media/...`).
 
 ### Frontend (Vue)
-Servidor padrão: `http://localhost:3000`
-
-O frontend lê a base da API por `VITE_API_BASE_URL` (arquivo `frontend/.env`) e ela deve apontar para o prefixo `/api`.
-
-Exemplos:
-- Dev: `http://127.0.0.1:8000/api`
-- Produção (PythonAnywhere): `https://ruthusky.pythonanywhere.com/api`
-
-Deploy na Vercel:
-- Opção A (recomendado): setar a env var `VITE_API_BASE_URL` na Vercel com `https://ruthusky.pythonanywhere.com/api` e redeploy.
-- Opção B: usar proxy via `frontend/vercel.json` (rewrite de `/api/*` para o PythonAnywhere). Nesse caso, o frontend pode chamar `https://mamutes-fa.vercel.app/api/...` e a Vercel encaminha.
+Dev server em: `http://localhost:3000`
 
 ```bash
-cd /c/Users/u12512/Projetos/mamutes_fa/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-## Autenticação e roles
-Roles: `ADMIN`, `COACH`, `PLAYER`.
+Config de API do frontend:
+- Hoje está em `frontend/src/api/http.ts` (const `API_BASE_URL`).
+- O axios usa `baseURL = ${API_BASE_URL}/api` e remove automaticamente prefixos `/api/...` nas chamadas.
 
-Endpoints de auth:
-- `POST /api/accounts/login/` (JWT)
+## Endpoints principais
+
+### Accounts
+- `POST /api/accounts/login/`
 - `POST /api/accounts/refresh/`
 - `GET /api/accounts/me/`
+- `POST /api/accounts/change-password/`
+- `GET/POST /api/accounts/users/` (admin/coach)
 
-## Endpoints principais (API)
+### Athletes
+- `GET/POST /api/athletes/` (admin/coach)
+- `GET/PATCH/DELETE /api/athletes/{id}/` (admin/coach)
+- `GET /api/athletes/stats/` (admin/coach)
+- `GET/PATCH /api/athletes/me/` (usuário autenticado vinculado ao atleta)
 
-Atletas:
-- `GET/POST /api/athletes/`
-- `GET/PATCH/DELETE /api/athletes/{id}/`
-
-Treinos:
+### Trainings
 - `GET/POST /api/trainings/`
 - `GET/PATCH/DELETE /api/trainings/{id}/`
+- `GET /api/trainings/{id}/ranking/?position=WR` (admin/coach)
+- `GET /api/trainings/{id}/coach_dashboard/` (admin/coach)
 
-Catálogo de drills:
-- `GET /api/trainings/catalog/`
+Bulk (admin/coach):
+- `POST /api/trainings/{id}/attendance_bulk/`
+- `POST /api/trainings/{id}/drills_bulk/`
+- `POST /api/trainings/{id}/scores_bulk/`
 
-Coach (treino):
-- `GET /api/trainings/{id}/coach_dashboard/`
-- `POST /api/trainings/{id}/attendance_bulk/` (lista de presença)
-- `POST /api/trainings/{id}/drills_bulk/` (drills do treino)
-- `POST /api/trainings/{id}/scores_bulk/` (salvar/atualizar nota + comentário por atleta/drill)
-- `DELETE /api/trainings/drills/{training_drill_id}/` (remover drill do treino)
+Analytics/evolução (admin/coach):
+- `GET /api/trainings/{id}/analytics/` (distribuição, desvio padrão, gaps, médias por posição/drill, drill mais difícil, atleta mais consistente)
+- `GET /api/trainings/evolution/?limit=8&athlete_id=123` (tendência do time, tendência individual opcional e comparação entre os 2 últimos treinos)
+- `GET /api/trainings/coach_overview/?limit=8` (overview legado: tendência + último treino)
+
+Catálogo e recursos:
+- `GET/POST /api/trainings/catalog/`
+- `GET/POST /api/trainings/drills/`
+- `GET/POST /api/trainings/scores/`
+
+Export (admin/coach):
 - `GET /api/trainings/{id}/export/pdf/`
 - `GET /api/trainings/{id}/export/csv/`
-
-Coach (dashboard):
-- `GET /api/trainings/coach_overview/?limit=8` (dados para gráficos do Coach Dashboard)
 
 ## Branding do PDF
 Config em `core/settings.py`:
 - `BRAND_NAME`
-- `BRAND_LOGO_PATH` (default: `media/brand/logo.png`)
+- `BRAND_LOGO_PATH` (ex: `media/brand/logo.png`)
+
+## Licença
+MIT — veja `LICENSE`.
