@@ -1,27 +1,43 @@
 <template>
-  <div>
-    <v-card class="mb-4">
-      <v-card-title>Coach Dashboard</v-card-title>
+  <v-container>
+    <v-sheet class="page-header" rounded="xl">
+      <div class="d-flex flex-wrap align-center justify-space-between ga-4">
+        <div class="d-flex align-center ga-3">
+          <div class="page-header__icon">
+            <v-icon size="26">mdi-chart-line</v-icon>
+          </div>
+          <div>
+            <div class="text-body-2 text-medium-emphasis">Coach</div>
+            <div class="text-h6 font-weight-bold">Dashboard</div>
+          </div>
+        </div>
+
+        <v-btn color="primary" variant="flat" rounded="xl" :to="{ name: 'coach-trainings' }">
+          <v-icon start>mdi-whistle</v-icon>
+          Ir para Treinos
+        </v-btn>
+      </div>
+    </v-sheet>
+
+    <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
         <v-alert type="info" variant="tonal" class="mb-4">
           Selecione um treino para visualizar ranking, presença e matriz de notas.
         </v-alert>
-
-        <v-btn variant="flat" color="primary" :to="{ name: 'coach-trainings' }">
-          Ir para Treinos
-        </v-btn>
       </v-card-text>
     </v-card>
 
-    <v-alert v-if="error" type="error" variant="tonal" class="mb-4">
+    <v-alert v-if="error" type="error" variant="tonal" class="mt-4">
       {{ error }}
     </v-alert>
 
-    <v-progress-circular v-if="loading" indeterminate />
+    <div v-if="loading" class="d-flex justify-center py-10">
+      <v-progress-circular indeterminate />
+    </div>
 
-    <v-row v-else>
+    <v-row v-else class="mt-1">
       <v-col cols="12" md="6">
-        <v-card>
+        <v-card variant="tonal" rounded="xl">
           <v-card-title class="d-flex flex-wrap align-center justify-space-between">
             Tendência (últimos treinos)
             <div v-if="latestTraining" class="text-body-2 text-medium-emphasis">
@@ -38,7 +54,7 @@
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-card>
+        <v-card variant="tonal" rounded="xl">
           <v-card-title>Média por drill (último treino)</v-card-title>
           <v-card-text>
             <div v-if="drillItems.length === 0" class="text-body-2 text-medium-emphasis">
@@ -49,7 +65,7 @@
         </v-card>
       </v-col>
     </v-row>
-  </div>
+  </v-container>
 </template>
 
 <script setup lang="ts">
@@ -92,3 +108,30 @@ async function fetchOverview() {
 
 onMounted(fetchOverview)
 </script>
+
+<style scoped>
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  background: rgba(var(--v-theme-surface), 0.70);
+  backdrop-filter: blur(12px);
+}
+
+.page-header__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--v-theme-on-primary), 1);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 1),
+    rgba(var(--v-theme-primary), 0.75)
+  );
+}
+</style>

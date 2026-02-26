@@ -17,6 +17,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/player/Dashboard.vue'),
         meta: { requiresAuth: true, roles: ['PLAYER'] },
       },
+      {
+        path: 'player/profile',
+        name: 'player-profile',
+        component: () => import('@/pages/player/Profile.vue'),
+        meta: { requiresAuth: true, roles: ['PLAYER'] },
+      },
 
       // COACH / ADMIN
       {

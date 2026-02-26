@@ -1,17 +1,31 @@
 <template>
   <v-container>
-    <v-card>
-      <v-card-title class="d-flex flex-wrap justify-space-between align-center">
-        Catálogo de Drills
-        <v-btn class="mt-2 mt-sm-0" color="primary" @click="openNew">Novo Drill</v-btn>
-      </v-card-title>
+    <v-sheet class="page-header" rounded="xl">
+      <div class="d-flex flex-wrap align-center justify-space-between ga-4">
+        <div class="d-flex align-center ga-3">
+          <div class="page-header__icon">
+            <v-icon size="26">mdi-format-list-bulleted</v-icon>
+          </div>
+          <div>
+            <div class="text-body-2 text-medium-emphasis">Coach</div>
+            <div class="text-h6 font-weight-bold">Catálogo de Drills</div>
+          </div>
+        </div>
 
+        <v-btn class="mt-2 mt-sm-0" color="primary" variant="flat" rounded="xl" @click="openNew">
+          <v-icon start>mdi-plus</v-icon>
+          Novo Drill
+        </v-btn>
+      </div>
+    </v-sheet>
+
+    <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
         <v-text-field
           v-model="q"
           label="Buscar"
           variant="outlined"
-          density="compact"
+          density="comfortable"
           class="mb-3"
           clearable
           @update:model-value="debouncedFetch"
@@ -44,23 +58,40 @@
           </v-table>
         </div>
 
-        <v-progress-circular v-if="loading" indeterminate class="mt-4" />
+        <div v-if="loading" class="d-flex justify-center py-8">
+          <v-progress-circular indeterminate />
+        </div>
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="dialog" :fullscreen="display.smAndDown.value" max-width="640" scrollable>
-      <v-card>
-        <v-card-title>{{ editing ? 'Editar' : 'Novo' }} Drill</v-card-title>
+    <v-dialog v-model="dialog" class="app-dialog" :fullscreen="display.smAndDown.value" max-width="560" scrollable>
+      <v-card rounded="xl">
+        <div class="app-dialog__header">
+          <div class="text-h6 font-weight-bold">{{ editing ? 'Editar Drill' : 'Novo Drill' }}</div>
+          <v-btn icon variant="text" :disabled="saving" @click="dialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <v-divider />
+
         <v-card-text>
           <v-alert v-if="error" type="error" variant="tonal" class="mb-3">{{ error }}</v-alert>
 
-          <v-text-field v-model="form.name" label="Nome" />
-          <v-text-field v-model="form.category" label="Categoria (opcional)" />
-          <v-textarea v-model="form.description" label="Descrição (opcional)" />
+          <v-text-field v-model="form.name" label="Nome" variant="outlined" density="comfortable" />
+          <v-text-field v-model="form.category" label="Categoria (opcional)" variant="outlined" density="comfortable" />
+          <v-textarea v-model="form.description" label="Descrição (opcional)" variant="outlined" density="comfortable" />
         </v-card-text>
-        <v-card-actions class="justify-end">
-          <v-btn variant="text" :disabled="saving" @click="dialog = false">Cancelar</v-btn>
-          <v-btn color="primary" :loading="saving" @click="save">Salvar</v-btn>
+
+        <v-card-actions>
+          <div class="app-dialog__actions">
+            <v-btn variant="outlined" rounded="lg" class="flex-grow-1" :disabled="saving" @click="dialog = false">
+              Cancelar
+            </v-btn>
+            <v-btn color="primary" variant="flat" rounded="lg" class="flex-grow-1" :loading="saving" @click="save">
+              {{ editing ? 'Salvar' : 'Adicionar' }}
+            </v-btn>
+          </div>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -186,3 +217,48 @@ async function remove(d: DrillCatalog) {
 
 onMounted(fetchCatalog)
 </script>
+
+<style scoped>
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  background: rgba(var(--v-theme-surface), 0.70);
+  backdrop-filter: blur(12px);
+}
+
+.page-header__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--v-theme-on-primary), 1);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 1),
+    rgba(var(--v-theme-primary), 0.75)
+  );
+}
+
+.app-dialog :deep(.v-overlay__scrim) {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px);
+}
+
+.app-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.app-dialog__actions {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+}
+</style>

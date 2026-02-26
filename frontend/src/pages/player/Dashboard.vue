@@ -1,9 +1,22 @@
 <template>
-  <div>
-    <v-card class="mb-4">
-      <v-card-title>Meu Dashboard</v-card-title>
+  <v-container>
+    <v-sheet class="page-header" rounded="xl">
+      <div class="d-flex flex-wrap align-center justify-space-between ga-4">
+        <div class="d-flex align-center ga-3">
+          <div class="page-header__icon">
+            <v-icon size="26">mdi-view-dashboard</v-icon>
+          </div>
+          <div>
+            <div class="text-body-2 text-medium-emphasis">Player</div>
+            <div class="text-h6 font-weight-bold">Meu Dashboard</div>
+          </div>
+        </div>
+      </div>
+    </v-sheet>
+
+    <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
-        <div v-if="loading">
+        <div v-if="loading" class="d-flex justify-center py-10">
           <v-progress-circular indeterminate />
         </div>
 
@@ -20,31 +33,31 @@
 
             <div class="table-scroll">
               <v-table density="comfortable">
-              <thead>
-                <tr>
-                  <th>Drill</th>
-                  <th>Nota</th>
-                  <th>Comentário</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="d in latest.drills" :key="d.training_drill_id">
-                  <td>{{ d.drill_name }}</td>
-                  <td>{{ d.score ?? '-' }}</td>
-                  <td>{{ d.comment ?? '-' }}</td>
-                </tr>
-              </tbody>
+                <thead>
+                  <tr>
+                    <th>Drill</th>
+                    <th>Nota</th>
+                    <th>Comentário</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="d in latest.drills" :key="d.training_drill_id">
+                    <td>{{ d.drill_name }}</td>
+                    <td>{{ d.score ?? '-' }}</td>
+                    <td>{{ d.comment ?? '-' }}</td>
+                  </tr>
+                </tbody>
               </v-table>
             </div>
           </div>
 
-          <div v-else>
+          <div v-else class="text-body-2 text-medium-emphasis">
             Nenhum treino encontrado.
           </div>
         </div>
       </v-card-text>
     </v-card>
-  </div>
+  </v-container>
 </template>
 
 <script setup lang="ts">
@@ -75,3 +88,30 @@ async function fetchLatest() {
 
 onMounted(fetchLatest)
 </script>
+
+<style scoped>
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  background: rgba(var(--v-theme-surface), 0.70);
+  backdrop-filter: blur(12px);
+}
+
+.page-header__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--v-theme-on-primary), 1);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 1),
+    rgba(var(--v-theme-primary), 0.75)
+  );
+}
+</style>

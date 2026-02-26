@@ -1,6 +1,34 @@
 <template>
   <v-container>
-    <v-card v-if="error" class="mb-4">
+    <v-sheet class="page-header" rounded="xl">
+      <div class="d-flex flex-wrap align-center justify-space-between ga-4">
+        <div class="d-flex align-center ga-3">
+          <div class="page-header__icon">
+            <v-icon size="26">mdi-calendar-check</v-icon>
+          </div>
+          <div>
+            <div class="text-body-2 text-medium-emphasis">Coach</div>
+            <div class="text-h6 font-weight-bold">
+              Treino {{ dashboard?.training?.date ? formatDateBR(dashboard.training.date) : '' }}
+            </div>
+          </div>
+        </div>
+
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="xl"
+          :disabled="!dashboard"
+          :loading="downloading"
+          @click="downloadPdf"
+        >
+          <v-icon start>mdi-file-pdf-box</v-icon>
+          Exportar PDF
+        </v-btn>
+      </div>
+    </v-sheet>
+
+    <v-card v-if="error" variant="tonal" rounded="xl" class="mt-4">
       <v-card-title>Erro ao carregar treino</v-card-title>
       <v-card-text>
         <v-alert type="error" variant="tonal" class="mb-3">
@@ -17,11 +45,13 @@
       </v-card-text>
     </v-card>
 
-    <v-progress-circular v-else-if="loading" indeterminate />
+    <div v-else-if="loading" class="d-flex justify-center py-10">
+      <v-progress-circular indeterminate />
+    </div>
 
     <div v-else-if="dashboard">
-      <v-card class="mb-4">
-        <v-card-title>Treino {{ formatDateBR(dashboard.training.date) }}</v-card-title>
+      <v-card variant="tonal" rounded="xl" class="mt-4">
+        <v-card-title>Resumo</v-card-title>
         <v-card-text>
           <div><strong>Local:</strong> {{ dashboard.training.location || '-' }}</div>
           <div>
@@ -29,14 +59,9 @@
             {{ dashboard.summary.training_weighted_average ?? '-' }}
           </div>
         </v-card-text>
-        <v-card-actions>
-          <v-btn color="primary" variant="tonal" :loading="downloading" @click="downloadPdf">
-            Exportar PDF
-          </v-btn>
-        </v-card-actions>
       </v-card>
 
-      <v-card class="mb-4">
+      <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Lista de presença
           <v-btn class="mt-2 mt-sm-0" variant="tonal" :loading="savingAttendance" @click="saveAttendance">
@@ -83,7 +108,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card class="mb-4">
+      <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Drills do treino
           <v-btn class="mt-2 mt-sm-0" variant="tonal" :loading="savingDrill" @click="addDrill">
@@ -162,7 +187,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card class="mb-4">
+      <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Avaliação individual
           <v-btn
@@ -224,7 +249,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card class="mb-4">
+      <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title>Ranking</v-card-title>
         <v-card-text>
           <div class="table-scroll">
@@ -250,7 +275,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card>
+      <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title>Presença</v-card-title>
         <v-card-text>
           <div class="table-scroll">
@@ -612,3 +637,30 @@ watch(
   () => syncScoreFormFromExisting()
 )
 </script>
+
+<style scoped>
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  background: rgba(var(--v-theme-surface), 0.70);
+  backdrop-filter: blur(12px);
+}
+
+.page-header__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--v-theme-on-primary), 1);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 1),
+    rgba(var(--v-theme-primary), 0.75)
+  );
+}
+</style>

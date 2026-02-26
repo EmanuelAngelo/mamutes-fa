@@ -14,6 +14,7 @@
       <v-list nav>
         <template v-if="auth.isPlayer">
           <v-list-item title="Meu Dashboard" :to="{ name: 'player-dashboard' }" />
+          <v-list-item title="Meu Perfil" :to="{ name: 'player-profile' }" />
         </template>
 
         <template v-else>
