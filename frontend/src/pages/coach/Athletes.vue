@@ -18,7 +18,7 @@
       </div>
     </v-sheet>
 
-    <v-row dense class="mt-4">
+    <v-row density="comfortable" class="mt-4">
       <v-col cols="12" sm="4">
         <v-card variant="tonal" class="stats-card" rounded="xl">
           <v-card-text class="d-flex align-center ga-4">
@@ -64,7 +64,7 @@
       </v-col>
     </v-row>
 
-    <v-row dense class="mt-2">
+    <v-row density="comfortable" class="mt-2">
       <v-col cols="12" sm="8">
         <v-text-field
           v-model="search"
@@ -88,7 +88,7 @@
       </v-col>
     </v-row>
 
-    <v-row dense class="mt-2">
+    <v-row density="comfortable" class="mt-2">
       <template v-if="loadingAthletes">
         <v-col v-for="i in 8" :key="i" cols="12" sm="6" md="4" lg="3">
           <v-skeleton-loader type="card" class="rounded-xl" />
@@ -253,7 +253,7 @@
               class="mt-2"
             />
 
-            <v-row dense>
+            <v-row density="comfortable">
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model.number="form.jersey_number"
@@ -277,7 +277,7 @@
               </v-col>
             </v-row>
 
-            <v-row dense>
+            <v-row density="comfortable">
               <v-col cols="12" sm="6">
                 <v-select
                   v-model="form.is_active"

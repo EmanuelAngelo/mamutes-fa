@@ -7,7 +7,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from math import ceil
+from math import ceil, sqrt
+from collections import defaultdict
 from django.conf import settings
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image, KeepTogether
@@ -203,6 +204,127 @@ class TrainingSessionViewSet(ModelViewSet):
         )
         return drills, scores
 
+    def _mean(self, values):
+        if not values:
+            return None
+        return float(sum(values) / len(values))
+
+    def _variance(self, values):
+        if not values:
+            return None
+        mu = self._mean(values)
+        if mu is None:
+            return None
+        return float(sum((x - mu) ** 2 for x in values) / len(values))
+
+    def _stddev(self, values):
+        var = self._variance(values)
+        return float(sqrt(var)) if var is not None else None
+
+    def _weighted_averages(self, training, position_code=None):
+        items = self._compute_ranking_items(training, position_code=position_code)
+        return [x for x in items if x.get("weighted_average") is not None]
+
+    def _score_distribution(self, training):
+        scores = list(
+            DrillScore.objects
+            .filter(training_drill__training=training)
+            .values_list("score", flat=True)
+        )
+
+        values = [float(s) for s in scores if s is not None]
+        total = len(values)
+        bins = [
+            {"key": "0-4", "label": "0–4", "count": 0},
+            {"key": "5-6", "label": "5–6", "count": 0},
+            {"key": "7-8", "label": "7–8", "count": 0},
+            {"key": "9-10", "label": "9–10", "count": 0},
+        ]
+
+        for v in values:
+            if v < 5:
+                bins[0]["count"] += 1
+            elif v < 7:
+                bins[1]["count"] += 1
+            elif v < 9:
+                bins[2]["count"] += 1
+            else:
+                bins[3]["count"] += 1
+
+        for b in bins:
+            b["percent"] = round((b["count"] / total) * 100.0, 2) if total else 0.0
+
+        return {"total_scores": total, "bins": bins}
+
+    def _drill_averages(self, training):
+        drills = list(TrainingDrill.objects.filter(training=training).order_by("order", "id"))
+        drill_avg_qs = (
+            DrillScore.objects
+            .filter(training_drill__training=training)
+            .values("training_drill_id")
+            .annotate(avg_score=Avg("score"), scores_count=Count("id"))
+        )
+        avg_map = {
+            row["training_drill_id"]: {
+                "avg": (float(row["avg_score"]) if row["avg_score"] is not None else None),
+                "count": int(row["scores_count"] or 0),
+            }
+            for row in drill_avg_qs
+        }
+
+        items = []
+        for d in drills:
+            meta = avg_map.get(d.id, {"avg": None, "count": 0})
+            items.append({
+                "training_drill_id": d.id,
+                "name": d.name,
+                "order": d.order,
+                "avg_score": round(meta["avg"], 2) if meta["avg"] is not None else None,
+                "scores_count": meta["count"],
+            })
+
+        valid = [x for x in items if x["avg_score"] is not None and x["scores_count"] > 0]
+        hardest = min(valid, key=lambda x: x["avg_score"]) if valid else None
+
+        return items, hardest
+
+    def _most_consistent_athlete(self, training):
+        qs = (
+            DrillScore.objects
+            .filter(training_drill__training=training)
+            .select_related("athlete")
+            .values("athlete_id", "athlete__name")
+        )
+
+        bucket = defaultdict(list)
+        athlete_name = {}
+        for row in qs:
+            athlete_name[row["athlete_id"]] = row["athlete__name"]
+
+        for s in DrillScore.objects.filter(training_drill__training=training).values("athlete_id", "score"):
+            if s["score"] is None:
+                continue
+            bucket[s["athlete_id"]].append(float(s["score"]))
+
+        best = None
+        for athlete_id, values in bucket.items():
+            if len(values) < 2:
+                continue
+            var = self._variance(values)
+            if var is None:
+                continue
+            item = {
+                "athlete_id": athlete_id,
+                "athlete_name": athlete_name.get(athlete_id),
+                "variance": round(float(var), 4),
+                "stddev": round(float(sqrt(var)), 4),
+                "scored_drills": len(values),
+            }
+            if best is None or item["variance"] < best["variance"]:
+                best = item
+
+        return best
+
     # ==========================================================
     # Endpoints
     # ==========================================================
@@ -378,6 +500,154 @@ class TrainingSessionViewSet(ModelViewSet):
             "trend": trend_items,
             "latest_training": latest_training_payload,
             "latest_drills": latest_drills_items,
+        })
+
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+    def analytics(self, request, pk=None):
+        """Métricas analíticas avançadas por treino (visão coach)."""
+        training = self.get_object()
+
+        # Weighted averages (ranking)
+        ranked = self._weighted_averages(training)
+        wavg_values = [float(x["weighted_average"]) for x in ranked]
+        wavg_mean = self._mean(wavg_values)
+        wavg_std = self._stddev(wavg_values)
+
+        # Top3 vs Bottom3 gap
+        top = wavg_values[:3]
+        bottom = wavg_values[-3:] if len(wavg_values) >= 3 else wavg_values
+        top_mean = self._mean(top)
+        bottom_mean = self._mean(bottom)
+        top_bottom_gap = (top_mean - bottom_mean) if (top_mean is not None and bottom_mean is not None) else None
+
+        # Position stats
+        by_pos = defaultdict(list)
+        for it in ranked:
+            by_pos[it.get("position") or ""] .append(float(it["weighted_average"]))
+
+        pos_items = []
+        for pos, vals in by_pos.items():
+            if not vals:
+                continue
+            avg = self._mean(vals)
+            gap_internal = (max(vals) - min(vals)) if len(vals) >= 2 else 0.0
+            pos_items.append({
+                "position": pos or None,
+                "athletes_count": len(vals),
+                "avg_weighted": round(avg, 2) if avg is not None else None,
+                "internal_gap": round(float(gap_internal), 2),
+            })
+        pos_items.sort(key=lambda x: (x["position"] is None, x["position"] or ""))
+
+        # Drill averages + hardest drill
+        drill_items, hardest = self._drill_averages(training)
+
+        # Score distribution (all DrillScore in training)
+        distribution = self._score_distribution(training)
+
+        # Most consistent athlete (lowest variance across drills)
+        most_consistent = self._most_consistent_athlete(training)
+
+        return Response({
+            "training": {"id": training.id, "date": training.date},
+            "distribution": distribution,
+            "weighted_average": {
+                "athletes_count": len(wavg_values),
+                "mean": round(wavg_mean, 2) if wavg_mean is not None else None,
+                "stddev": round(wavg_std, 4) if wavg_std is not None else None,
+            },
+            "top3_bottom3_gap": {
+                "top3_mean": round(top_mean, 2) if top_mean is not None else None,
+                "bottom3_mean": round(bottom_mean, 2) if bottom_mean is not None else None,
+                "gap": round(top_bottom_gap, 2) if top_bottom_gap is not None else None,
+            },
+            "by_position": pos_items,
+            "by_drill": drill_items,
+            "hardest_drill": hardest,
+            "most_consistent_athlete": most_consistent,
+        })
+
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach])
+    def evolution(self, request):
+        """Métricas evolutivas (time e atletas) para o Coach Dashboard."""
+        try:
+            limit = int(request.query_params.get("limit", "8"))
+        except ValueError:
+            limit = 8
+        limit = max(2, min(limit, 30))
+
+        athlete_id = request.query_params.get("athlete_id")
+        athlete_id = int(athlete_id) if athlete_id and athlete_id.isdigit() else None
+
+        latest_qs = TrainingSession.objects.all().order_by("-date", "-id")
+        trainings = list(latest_qs[:limit])
+        trainings.reverse()  # chronological
+
+        team_trend = []
+        per_training_athlete_avg = []  # list of dict athlete_id -> wavg
+        for t in trainings:
+            ranked = self._weighted_averages(t)
+            values = [float(x["weighted_average"]) for x in ranked]
+            team_avg = self._mean(values)
+            team_trend.append({
+                "training_id": t.id,
+                "label": str(t.date),
+                "value": float(round(team_avg, 2)) if team_avg is not None else 0.0,
+            })
+            per_training_athlete_avg.append({x["athlete_id"]: float(x["weighted_average"]) for x in ranked})
+
+        from_t = trainings[-2] if len(trainings) >= 2 else None
+        to_t = trainings[-1] if trainings else None
+
+        comparison = None
+        athletes_summary = []
+
+        if from_t and to_t:
+            from_map = per_training_athlete_avg[-2]
+            to_map = per_training_athlete_avg[-1]
+            common_ids = set(from_map.keys()) & set(to_map.keys())
+
+            name_map = {x["athlete_id"]: x.get("athlete_name") for x in self._weighted_averages(to_t)}
+            name_map.update({x["athlete_id"]: x.get("athlete_name") for x in self._weighted_averages(from_t)})
+
+            for aid in common_ids:
+                delta = float(to_map[aid] - from_map[aid])
+                athletes_summary.append({
+                    "athlete_id": aid,
+                    "athlete_name": name_map.get(aid),
+                    "from": round(float(from_map[aid]), 2),
+                    "to": round(float(to_map[aid]), 2),
+                    "delta": round(delta, 2),
+                })
+
+            best = max(athletes_summary, key=lambda x: x["delta"], default=None)
+            worst = min(athletes_summary, key=lambda x: x["delta"], default=None)
+
+            comparison = {
+                "from_training": {"id": from_t.id, "date": from_t.date},
+                "to_training": {"id": to_t.id, "date": to_t.date},
+                "biggest_improvement": best,
+                "biggest_regression": worst,
+            }
+
+        individual = None
+        if athlete_id:
+            series = []
+            for idx, t in enumerate(trainings):
+                val = per_training_athlete_avg[idx].get(athlete_id)
+                series.append({
+                    "training_id": t.id,
+                    "label": str(t.date),
+                    "value": round(float(val), 2) if val is not None else None,
+                })
+            individual = {"athlete_id": athlete_id, "trend": series}
+
+        return Response({
+            "trainings": [{"id": t.id, "date": t.date} for t in trainings],
+            "team_trend": team_trend,
+            "comparison": comparison,
+            "athletes_summary": athletes_summary,
+            "individual": individual,
         })
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")

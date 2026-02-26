@@ -22,7 +22,8 @@
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
         <v-alert type="info" variant="tonal" class="mb-4">
-          Selecione um treino para visualizar ranking, presença e matriz de notas.
+          Aqui você vê um resumo: tendência da média do time e médias por drill do último treino.
+          Para ranking, presença e matriz de notas, acesse um treino em “Treinos”.
         </v-alert>
       </v-card-text>
     </v-card>
@@ -49,6 +50,15 @@
               Sem dados suficientes.
             </div>
             <LineChart v-else title="Média ponderada" :items="trendItems" />
+
+            <div v-if="comparison" class="text-body-2 text-medium-emphasis mt-3">
+              <div v-if="comparison.biggest_improvement">
+                Maior evolução: {{ comparison.biggest_improvement.athlete_name }} ({{ comparison.biggest_improvement.delta }})
+              </div>
+              <div v-if="comparison.biggest_regression">
+                Regressão técnica: {{ comparison.biggest_regression.athlete_name }} ({{ comparison.biggest_regression.delta }})
+              </div>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -61,6 +71,15 @@
               Sem drills/avaliações no último treino.
             </div>
             <BarChart v-else title="Média do drill" :items="drillItems" />
+
+            <div v-if="hardestDrill || mostConsistentAthlete" class="text-body-2 text-medium-emphasis mt-3">
+              <div v-if="hardestDrill">
+                Drill mais difícil: {{ hardestDrill.name }} ({{ hardestDrill.avg_score ?? '-' }})
+              </div>
+              <div v-if="mostConsistentAthlete">
+                Atleta mais consistente: {{ mostConsistentAthlete.athlete_name }} (var {{ mostConsistentAthlete.variance }})
+              </div>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -88,15 +107,41 @@ const error = ref<string | null>(null)
 const trendItems = ref<Item[]>([])
 const drillItems = ref<Item[]>([])
 const latestTraining = ref<any | null>(null)
+const comparison = ref<any | null>(null)
+const hardestDrill = ref<any | null>(null)
+const mostConsistentAthlete = ref<any | null>(null)
 
 async function fetchOverview() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await http.get('/trainings/coach_overview/?limit=8')
-    trendItems.value = (data?.trend ?? []) as Item[]
-    drillItems.value = (data?.latest_drills ?? []) as Item[]
-    latestTraining.value = data?.latest_training ?? null
+    const { data } = await http.get('/trainings/evolution/?limit=8')
+    const teamTrend = (data?.team_trend ?? []) as Array<{ label: string; value: number; training_id: number }>
+    trendItems.value = teamTrend.map(x => ({ label: x.label, value: x.value }))
+    comparison.value = data?.comparison ?? null
+
+    const last = teamTrend.length ? teamTrend[teamTrend.length - 1] : undefined
+    const lastTraining = comparison.value?.to_training
+    latestTraining.value = lastTraining
+      ? {
+          id: lastTraining.id,
+          date: String(lastTraining.date),
+          training_weighted_average: last?.value ?? null,
+        }
+      : null
+
+    drillItems.value = []
+    hardestDrill.value = null
+    mostConsistentAthlete.value = null
+
+    const trainingId = latestTraining.value?.id
+    if (trainingId) {
+      const { data: analytics } = await http.get(`/trainings/${trainingId}/analytics/`)
+      const byDrill = (analytics?.by_drill ?? []) as Array<{ name: string; avg_score: number | null }>
+      drillItems.value = byDrill.map(d => ({ label: d.name, value: d.avg_score ?? 0 }))
+      hardestDrill.value = analytics?.hardest_drill ?? null
+      mostConsistentAthlete.value = analytics?.most_consistent_athlete ?? null
+    }
   } catch (e: any) {
     const status = e?.response?.status
     error.value = status ? `Falha ao carregar gráficos (HTTP ${status}).` : 'Falha ao carregar gráficos.'

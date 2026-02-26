@@ -1,5 +1,7 @@
 <template>
-  <Bar v-if="data" :data="data" :options="options" />
+  <div class="chart-container">
+    <Bar v-if="data" :data="data" :options="options" />
+  </div>
 </template>
 
 <script lang="ts">
@@ -114,5 +116,8 @@ const options = computed(() => {
 </script>
 
 <style scoped>
-:deep(canvas){ height: 260px !important; }
+.chart-container {
+  position: relative;
+  height: 260px;
+}
 </style>

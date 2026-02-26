@@ -1,5 +1,7 @@
 <template>
-  <Line v-if="data" :data="data" :options="options" />
+  <div class="chart-container">
+    <Line v-if="data" :data="data" :options="options" />
+  </div>
 </template>
 
 <script lang="ts">
@@ -16,13 +18,14 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
   LineElement,
   PointElement,
   CategoryScale,
   LinearScale,
 } from 'chart.js'
 
-ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, CategoryScale, LinearScale)
+ChartJS.register(Title, Tooltip, Legend, Filler, LineElement, PointElement, CategoryScale, LinearScale)
 
 type Item = { label: string; value: number }
 
@@ -119,5 +122,8 @@ const options = computed(() => {
 </script>
 
 <style scoped>
-:deep(canvas){ height: 260px !important; }
+.chart-container {
+  position: relative;
+  height: 260px;
+}
 </style>
