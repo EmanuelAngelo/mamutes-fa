@@ -13,19 +13,47 @@
     <v-navigation-drawer v-model="drawer" temporary>
       <v-list nav>
         <template v-if="auth.isPlayer">
-          <v-list-item title="Meu Dashboard" :to="{ name: 'player-dashboard' }" />
-          <v-list-item title="Meu Perfil" :to="{ name: 'player-profile' }" />
+          <v-list-item
+            title="Meu Dashboard"
+            prepend-icon="mdi-view-dashboard"
+            :to="{ name: 'player-dashboard' }"
+          />
+          <v-list-item
+            title="Meu Perfil"
+            prepend-icon="mdi-account"
+            :to="{ name: 'player-profile' }"
+          />
         </template>
 
         <template v-else>
-          <v-list-item title="Coach Dashboard" :to="{ name: 'coach-dashboard' }" />
-          <v-list-item title="Treinos" :to="{ name: 'coach-trainings' }" />
-          <v-list-item title="Atletas" :to="{ name: 'coach-athletes' }" />
-          <v-list-item title="Catálogo de Drills" :to="{ name: 'coach-drills-catalog' }" />
+          <v-list-item
+            title="Coach Dashboard"
+            prepend-icon="mdi-chart-line"
+            :to="{ name: 'coach-dashboard' }"
+          />
+          <v-list-item
+            title="Treinos"
+            prepend-icon="mdi-whistle"
+            :to="{ name: 'coach-trainings' }"
+          />
+          <v-list-item
+            title="Atletas"
+            prepend-icon="mdi-account-group"
+            :to="{ name: 'coach-athletes' }"
+          />
+          <v-list-item
+            title="Catálogo de Drills"
+            prepend-icon="mdi-format-list-bulleted"
+            :to="{ name: 'coach-drills-catalog' }"
+          />
         </template>
 
         <v-divider class="my-2" />
-        <v-list-item title="Trocar senha" @click="openChangePassword" />
+        <v-list-item
+          title="Trocar senha"
+          prepend-icon="mdi-lock-reset"
+          @click="openChangePassword"
+        />
       </v-list>
     </v-navigation-drawer>
 
