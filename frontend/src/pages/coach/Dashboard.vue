@@ -83,6 +83,18 @@
           </v-card-text>
         </v-card>
       </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Distribuição de notas (último treino)</v-card-title>
+          <v-card-text>
+            <div v-if="distributionItems.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem notas registradas no último treino.
+            </div>
+            <PieChart v-else title="Faixas de notas" :items="distributionItems" />
+          </v-card-text>
+        </v-card>
+      </v-col>
     </v-row>
   </v-container>
 </template>
@@ -91,6 +103,7 @@
 import { onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
+import PieChart from '../../components/charts/PieChart.vue'
 import { http } from '../../api/http'
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -106,6 +119,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const trendItems = ref<Item[]>([])
 const drillItems = ref<Item[]>([])
+const distributionItems = ref<Item[]>([])
 const latestTraining = ref<any | null>(null)
 const comparison = ref<any | null>(null)
 const hardestDrill = ref<any | null>(null)
@@ -131,6 +145,7 @@ async function fetchOverview() {
       : null
 
     drillItems.value = []
+    distributionItems.value = []
     hardestDrill.value = null
     mostConsistentAthlete.value = null
 
@@ -139,6 +154,10 @@ async function fetchOverview() {
       const { data: analytics } = await http.get(`/trainings/${trainingId}/analytics/`)
       const byDrill = (analytics?.by_drill ?? []) as Array<{ name: string; avg_score: number | null }>
       drillItems.value = byDrill.map(d => ({ label: d.name, value: d.avg_score ?? 0 }))
+
+      const bins = (analytics?.distribution?.bins ?? []) as Array<{ label: string; count: number }>
+      distributionItems.value = bins.map(b => ({ label: b.label, value: Number(b.count ?? 0) }))
+
       hardestDrill.value = analytics?.hardest_drill ?? null
       mostConsistentAthlete.value = analytics?.most_consistent_athlete ?? null
     }
