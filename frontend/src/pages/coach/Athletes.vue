@@ -226,7 +226,7 @@
 
                 <div class="athlete-form__photo-overlay" :class="{ 'is-visible': saving }">
                   <v-progress-circular
-                    v-if="saving && form.photo instanceof File"
+                    v-if="saving && hasNewPhoto"
                     indeterminate
                     size="26"
                     width="3"
@@ -658,6 +658,8 @@ const positionFilterItems = computed(() => [
 const filteredAthletes = computed(() => {
   return athletes.value
 })
+
+const hasNewPhoto = computed(() => form.value.photo instanceof File)
 
 const statsTotal = computed(() => stats.value.total ?? 0)
 const statsAvgRating = computed(() => Number(stats.value.avg_rating ?? 0).toFixed(1))
