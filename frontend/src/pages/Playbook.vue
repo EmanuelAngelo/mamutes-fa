@@ -246,7 +246,7 @@
                 color="error"
                 variant="tonal"
                 :disabled="saving"
-                @click="clearImage"
+                @click="removeImageAndClose"
               >
                 <v-icon start size="18">mdi-trash-can</v-icon>
                 Remover imagem
@@ -544,6 +544,16 @@ function clearImage() {
   }
 }
 
+async function removeImageAndClose() {
+  clearImage()
+
+  // Se estiver editando uma jogada já existente, persiste a remoção e fecha.
+  // Em criação (novo), só remove o arquivo/preview sem fechar para não perder o resto do formulário.
+  if (editing.value) {
+    await save()
+  }
+}
+
 async function fetchPlays() {
   loading.value = true
   startLoading()
@@ -631,8 +641,8 @@ function askRemove(p: Play) {
   deleteDialog.value = true
 }
 
-function closeDelete() {
-  if (isDeleting.value) return
+function closeDelete(force = false) {
+  if (!force && isDeleting.value) return
   deleteDialog.value = false
   deleteTarget.value = null
 }
@@ -644,7 +654,7 @@ async function confirmRemove() {
   deletingId.value = deleteTarget.value.id
   try {
     await http.delete(`/playbook/plays/${deleteTarget.value.id}/`)
-    closeDelete()
+    closeDelete(true)
     await fetchPlays()
   } catch {
     alert('Não foi possível excluir.')

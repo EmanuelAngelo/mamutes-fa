@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     "trainings",
     "combine",
     "dashboard",
-    "playbook",
+    "playbook.apps.PlaybookConfig",
 ]
 
 MIDDLEWARE = [
