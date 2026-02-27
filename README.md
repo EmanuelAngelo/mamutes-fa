@@ -3,7 +3,7 @@
 Plataforma para gestão técnica do time: atletas, treinos, presença, drills, notas, rankings, dashboards e relatórios.
 
 ## Stack
-- Backend: Django 5 + Django REST Framework + SimpleJWT + SQLite
+- Backend: Django 6 + Django REST Framework + SimpleJWT + SQLite
 - Frontend: Vue 3 + Vuetify 4 + Vite + Pinia + Vue Router
 - Gráficos: Chart.js (`vue-chartjs`)
 - Relatórios: PDF/CSV (ReportLab + CSV)
@@ -36,6 +36,12 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
 - Meu Perfil (com preview card e edição)
 - Atualização via `PATCH /api/athletes/me/` (inclui foto)
 
+### Playbook
+- Página no menu lateral: **Playbook**
+- Coach/Admin: cria/edita/exclui jogadas (com imagem e explicação)
+- Player: visualiza o playbook (somente leitura)
+- Filtros: busca (`search`) e categoria (`Ataque`/`Defesa`)
+
 ### UI/UX
 - Layout com `NavigationDrawer` em modo `rail` (compacto) + header com perfil e toggle
 - Drawer usa a foto real do atleta (quando existir), com fallback para avatar por iniciais
@@ -49,7 +55,7 @@ API em: `http://127.0.0.1:8000/api`
 ```bash
 # na raiz do projeto
 python -m venv venv
-source venv/Scripts/activate
+source venv/bin/activate
 
 pip install -r requirements.txt
 
@@ -137,6 +143,20 @@ Catálogo e recursos:
 Export (admin/coach):
 - `GET /api/trainings/{id}/export/pdf/`
 - `GET /api/trainings/{id}/export/csv/`
+
+### Playbook
+Leitura (qualquer usuário autenticado):
+- `GET /api/playbook/plays/?ordering=-created_at&search=...&category=ATAQUE`
+- `GET /api/playbook/plays/{id}/`
+
+Escrita (admin/coach):
+- `POST /api/playbook/plays/`
+- `PATCH /api/playbook/plays/{id}/`
+- `DELETE /api/playbook/plays/{id}/`
+
+Upload de imagem:
+- Use `multipart/form-data` e envie o arquivo no campo `image`.
+- Para remover a imagem numa edição, envie `remove_image=true`.
 
 ## Branding do PDF
 Config em `core/settings.py`:

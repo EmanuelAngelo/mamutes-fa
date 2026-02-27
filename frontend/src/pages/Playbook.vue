@@ -406,8 +406,8 @@ const deleteTarget = ref<Play | null>(null)
 const isDeleting = computed(() => !!deleteTarget.value && deletingId.value === deleteTarget.value.id)
 
 const imageDialog = ref(false)
-const imageUrl = ref<string | null>(null)
-const imageTitle = ref<string | null>(null)
+const imageUrl = ref<string | undefined>(undefined)
+const imageTitle = ref<string | undefined>(undefined)
 
 const formError = ref<string | null>(null)
 const form = reactive({
@@ -574,8 +574,8 @@ function openImage(p: Play) {
 
 function closeImage() {
   imageDialog.value = false
-  imageTitle.value = null
-  imageUrl.value = null
+  imageTitle.value = undefined
+  imageUrl.value = undefined
 }
 
 async function save() {
