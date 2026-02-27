@@ -46,7 +46,15 @@
     </v-card>
 
     <div v-else-if="loading" class="d-flex justify-center py-10">
-      <v-progress-circular indeterminate />
+      <v-progress-circular
+        :model-value="progress"
+        :rotate="360"
+        :size="100"
+        :width="15"
+        color="teal"
+      >
+        {{ progress }}
+      </v-progress-circular>
     </div>
 
     <div v-else-if="dashboard">
@@ -73,7 +81,16 @@
             {{ attendanceError }}
           </v-alert>
 
-          <v-progress-circular v-if="loadingAttendance" indeterminate />
+          <v-progress-circular
+            v-if="loadingAttendance"
+            :model-value="attendanceProgress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ attendanceProgress }}
+          </v-progress-circular>
 
           <div v-else class="table-scroll">
             <v-table>
@@ -308,6 +325,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -323,6 +341,17 @@ const loading = ref(false)
 const downloading = ref(false)
 const error = ref<string | null>(null)
 const lastUrl = ref<string>('')
+
+const firstLoad = ref(true)
+const { value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
+
+const {
+  value: attendanceProgress,
+  start: startAttendanceLoading,
+  stop: stopAttendanceLoading,
+} = usePageProgressLoading({ minDurationMs: 0 })
 
 const catalog = ref<any[]>([])
 
@@ -404,6 +433,7 @@ function syncScoreFormFromExisting() {
 
 async function fetchDashboard() {
   loading.value = true
+  startLoading()
   error.value = null
   dashboard.value = null
 
@@ -426,6 +456,8 @@ async function fetchDashboard() {
     console.error(e)
   } finally {
     loading.value = false
+    await stopLoading({ minDurationMs: firstLoad.value ? 5000 : 0 })
+    firstLoad.value = false
   }
 }
 
@@ -458,6 +490,7 @@ function buildAttendanceRowsFrom(athletes: any[], existingAttendance: any[]) {
 
 async function fetchAttendanceEditorData() {
   loadingAttendance.value = true
+  startAttendanceLoading()
   attendanceError.value = null
   try {
     const [{ data: athletes }] = await Promise.all([
@@ -470,6 +503,7 @@ async function fetchAttendanceEditorData() {
     console.error(e)
   } finally {
     loadingAttendance.value = false
+    await stopAttendanceLoading({ minDurationMs: 0 })
   }
 }
 

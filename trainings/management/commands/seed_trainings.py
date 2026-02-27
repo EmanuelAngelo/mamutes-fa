@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from datetime import date, datetime, timedelta, time
+from datetime import date, timedelta, time
 from decimal import Decimal
 from typing import Iterable
 
@@ -156,18 +156,34 @@ class Command(BaseCommand):
         catalog = list(DrillCatalog.objects.all().order_by("name"))
 
         # -------------------------
-        # 2) Criar treinos
+        # 2) Criar treinos (datas únicas e aleatórias)
         # -------------------------
         today = date.today()
         created_trainings: list[TrainingSession] = []
 
-        # Datas espaçadas semanalmente, do mais antigo ao mais novo
-        # Ex: trainings_count=8 => 7 semanas atrás .. esta semana
-        start_date = today - timedelta(days=7 * (trainings_count - 1))
+        existing_dates = set(TrainingSession.objects.values_list("date", flat=True))
+        picked_dates: list[date] = []
+        picked_set: set[date] = set()
 
-        for idx in range(trainings_count):
-            d = start_date + timedelta(days=7 * idx)
+        # Gera datas aleatórias no passado recente e garante que não repete
+        # (nem dentro da execução, nem com treinos já existentes no banco).
+        days_back_max = max(60, trainings_count * 14)
+        attempts = 0
+        while len(picked_dates) < trainings_count:
+            attempts += 1
+            if attempts > 5000:
+                days_back_max *= 2
+                attempts = 0
 
+            candidate = today - timedelta(days=random.randint(0, days_back_max))
+            if candidate in existing_dates or candidate in picked_set:
+                continue
+            picked_set.add(candidate)
+            picked_dates.append(candidate)
+
+        picked_dates.sort()  # chronological
+
+        for d in picked_dates:
             t = TrainingSession.objects.create(
                 date=d,
                 start_time=time(hour=20, minute=0),
@@ -192,7 +208,10 @@ class Command(BaseCommand):
                         training=t,
                         athlete=a,
                         status=status,
-                        checkin_time=time(hour=20, minute=random.choice([0, 5, 10, 15, 20, 25, 30])) if status in ("PRESENT", "LATE") else None,
+                        checkin_time=
+                            time(hour=20, minute=random.choice([0, 5, 10, 15, 20, 25, 30]))
+                            if status in ("PRESENT", "LATE")
+                            else None,
                     )
                 )
             Attendance.objects.bulk_create(attendance_bulk, ignore_conflicts=True)
@@ -233,17 +252,18 @@ class Command(BaseCommand):
                     if random.random() > score_fill:
                         continue
 
-                    # 0.0..10.0 com 1 decimal
                     score = _rand_decimal(0.0, 10.0, 1)
                     comment = None
                     if random.random() < 0.12:
-                        comment = random.choice([
-                            "Boa execução.",
-                            "Precisa ajustar timing.",
-                            "Melhorar técnica e consistência.",
-                            "Ótima evolução.",
-                            "Foco em detalhes.",
-                        ])
+                        comment = random.choice(
+                            [
+                                "Boa execução.",
+                                "Precisa ajustar timing.",
+                                "Melhorar técnica e consistência.",
+                                "Ótima evolução.",
+                                "Foco em detalhes.",
+                            ]
+                        )
 
                     score_bulk.append(
                         DrillScore(
@@ -255,7 +275,6 @@ class Command(BaseCommand):
                         )
                     )
 
-            # Evita explodir em memória em bases grandes
             for chunk in _chunks(score_bulk, 2000):
                 DrillScore.objects.bulk_create(chunk, ignore_conflicts=True)
 

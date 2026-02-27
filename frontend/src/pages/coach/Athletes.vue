@@ -90,8 +90,16 @@
 
     <v-row density="comfortable" class="mt-2">
       <template v-if="loadingAthletes">
-        <v-col v-for="i in 8" :key="i" cols="12" sm="6" md="4" lg="3">
-          <v-skeleton-loader type="card" class="rounded-xl" />
+        <v-col cols="12" class="d-flex justify-center py-10">
+          <v-progress-circular
+            :model-value="progress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ progress }}
+          </v-progress-circular>
         </v-col>
       </template>
 
@@ -454,9 +462,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 
 const athletes = ref<any[]>([])
 const loadingAthletes = ref(false)
+
+const firstLoad = ref(true)
+const { value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
 
 const loadingStats = ref(false)
 const stats = ref<{ total: number; avg_rating: number; top_performer: { id: number; name: string; rating: number } | null }>({
@@ -675,12 +689,15 @@ function buildAthletesParams() {
 
 async function fetchAthletes() {
   loadingAthletes.value = true
+  startLoading()
   try {
     const params = buildAthletesParams()
     const { data } = await http.get('/athletes/', { params })
     athletes.value = data
   } finally {
     loadingAthletes.value = false
+    await stopLoading({ minDurationMs: firstLoad.value ? 5000 : 0 })
+    firstLoad.value = false
   }
 }
 

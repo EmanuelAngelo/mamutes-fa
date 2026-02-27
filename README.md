@@ -72,7 +72,7 @@ Cria atletas fictícios (20 por padrão):
 python manage.py seed_athletes --count 20
 ```
 
-Cria catálogo de drills + treinos + presença + pontuações (com notas 0..10):
+Cria catálogo de drills + treinos + presença + pontuações (com notas 0..10) — os treinos são gerados com **datas aleatórias e únicas**:
 
 ```bash
 python manage.py seed_trainings --trainings 8 --drills 6

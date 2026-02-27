@@ -45,7 +45,15 @@
         <v-alert v-if="success" type="success" variant="tonal" class="mb-3">Dados atualizados.</v-alert>
 
         <div v-if="loading" class="d-flex justify-center py-10">
-          <v-progress-circular indeterminate />
+          <v-progress-circular
+            :model-value="progress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ progress }}
+          </v-progress-circular>
         </div>
 
         <template v-else>
@@ -211,12 +219,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 
 const loading = ref(false)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
 const birthDateMenu = ref(false)
+
+const firstLoad = ref(true)
+const { value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
 
 const showEdit = ref(false)
 const athleteRating = ref(0)
@@ -346,6 +360,7 @@ function onPickBirthDate(value: unknown) {
 
 async function fetchMeAthlete() {
   loading.value = true
+  startLoading()
   try {
     const { data } = await http.get('/athletes/me/')
     form.value = {
@@ -367,6 +382,8 @@ async function fetchMeAthlete() {
     error.value = e?.response?.data?.detail || 'Não foi possível carregar seu perfil.'
   } finally {
     loading.value = false
+    await stopLoading({ minDurationMs: firstLoad.value ? 5000 : 0 })
+    firstLoad.value = false
   }
 }
 

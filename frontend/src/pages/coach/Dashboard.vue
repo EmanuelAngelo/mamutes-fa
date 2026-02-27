@@ -32,8 +32,16 @@
       {{ error }}
     </v-alert>
 
-    <div v-if="loading" class="d-flex justify-center py-10">
-      <v-progress-circular indeterminate />
+    <div v-if="pageLoading" class="d-flex justify-center py-10">
+      <v-progress-circular
+        :model-value="progress"
+        :rotate="360"
+        :size="100"
+        :width="15"
+        color="teal"
+      >
+        {{ progress }}
+      </v-progress-circular>
     </div>
 
     <v-row v-else class="mt-1">
@@ -105,6 +113,7 @@ import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import PieChart from '../../components/charts/PieChart.vue'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -115,7 +124,10 @@ function formatDateBR(iso: string | null | undefined): string {
 
 type Item = { label: string; value: number }
 
-const loading = ref(false)
+const { loading: pageLoading, value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
+
 const error = ref<string | null>(null)
 const trendItems = ref<Item[]>([])
 const drillItems = ref<Item[]>([])
@@ -126,7 +138,7 @@ const hardestDrill = ref<any | null>(null)
 const mostConsistentAthlete = ref<any | null>(null)
 
 async function fetchOverview() {
-  loading.value = true
+  startLoading()
   error.value = null
   try {
     const { data } = await http.get('/trainings/evolution/?limit=8')
@@ -166,7 +178,7 @@ async function fetchOverview() {
     error.value = status ? `Falha ao carregar gráficos (HTTP ${status}).` : 'Falha ao carregar gráficos.'
     console.error(e)
   } finally {
-    loading.value = false
+    await stopLoading()
   }
 }
 

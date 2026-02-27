@@ -21,6 +21,18 @@
 
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
+        <div v-if="loading" class="d-flex justify-center py-10">
+          <v-progress-circular
+            :model-value="progress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ progress }}
+          </v-progress-circular>
+        </div>
+
         <div class="table-scroll">
           <v-table>
             <thead>
@@ -102,12 +114,19 @@
 import { onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 
 const trainings = ref<any[]>([])
+const loading = ref(false)
 const dialog = ref(false)
 const display = useDisplay()
 const dateMenu = ref(false)
 const saving = ref(false)
+
+const firstLoad = ref(true)
+const { value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
 
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -156,8 +175,16 @@ watch(dialog, (isOpen) => {
 })
 
 async function fetchTrainings() {
-  const { data } = await http.get('/trainings/?ordering=-date')
-  trainings.value = data
+  loading.value = true
+  startLoading()
+  try {
+    const { data } = await http.get('/trainings/?ordering=-date')
+    trainings.value = data
+  } finally {
+    loading.value = false
+    await stopLoading({ minDurationMs: firstLoad.value ? 5000 : 0 })
+    firstLoad.value = false
+  }
 }
 
 async function createTraining() {
@@ -167,7 +194,7 @@ async function createTraining() {
     await http.post('/trainings/', form.value)
     dialog.value = false
     form.value = emptyForm()
-    fetchTrainings()
+    await fetchTrainings()
   } finally {
     saving.value = false
   }

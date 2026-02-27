@@ -16,8 +16,16 @@
 
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
-        <div v-if="loading" class="d-flex justify-center py-10">
-          <v-progress-circular indeterminate />
+        <div v-if="pageLoading" class="d-flex justify-center py-10">
+          <v-progress-circular
+            :model-value="progress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ progress }}
+          </v-progress-circular>
         </div>
 
         <div v-else>
@@ -63,6 +71,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -72,17 +81,19 @@ function formatDateBR(iso: string | null | undefined): string {
 }
 
 const latest = ref<any>(null)
-const loading = ref(false)
+const { loading: pageLoading, value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
 
 async function fetchLatest() {
-  loading.value = true
+  startLoading()
   try {
     const { data } = await http.get('/dashboard/my/latest-training/')
     latest.value = data
   } catch (err) {
     console.error(err)
   } finally {
-    loading.value = false
+    await stopLoading()
   }
 }
 

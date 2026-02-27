@@ -59,7 +59,15 @@
         </div>
 
         <div v-if="loading" class="d-flex justify-center py-8">
-          <v-progress-circular indeterminate />
+          <v-progress-circular
+            :model-value="progress"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="teal"
+          >
+            {{ progress }}
+          </v-progress-circular>
         </div>
       </v-card-text>
     </v-card>
@@ -102,6 +110,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
+import { usePageProgressLoading } from '@/composables/usePageProgressLoading'
 
 type DrillCatalog = {
   id: number
@@ -118,6 +127,11 @@ const saving = ref(false)
 const dialog = ref(false)
 const editing = ref<DrillCatalog | null>(null)
 const error = ref<string | null>(null)
+
+const firstLoad = ref(true)
+const { value: progress, start: startLoading, stop: stopLoading } = usePageProgressLoading({
+  minDurationMs: 5000,
+})
 
 const q = ref('')
 
@@ -158,6 +172,7 @@ watch(dialog, (open) => {
 
 async function fetchCatalog() {
   loading.value = true
+  startLoading()
   try {
     const params: any = { ordering: 'name' }
     if (q.value?.trim()) params.search = q.value.trim()
@@ -165,6 +180,8 @@ async function fetchCatalog() {
     drills.value = data
   } finally {
     loading.value = false
+    await stopLoading({ minDurationMs: firstLoad.value ? 5000 : 0 })
+    firstLoad.value = false
   }
 }
 
