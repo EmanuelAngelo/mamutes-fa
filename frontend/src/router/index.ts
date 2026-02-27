@@ -24,6 +24,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, roles: ['PLAYER'] },
       },
 
+      // PLAYBOOK (todos)
+      {
+        path: 'playbook',
+        name: 'playbook',
+        component: () => import('@/pages/Playbook.vue'),
+        meta: { requiresAuth: true, roles: ['PLAYER', 'COACH', 'ADMIN'] },
+      },
+
       // COACH / ADMIN
       {
         path: 'coach',

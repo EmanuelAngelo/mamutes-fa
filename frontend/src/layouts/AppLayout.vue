@@ -47,6 +47,11 @@
             :to="{ name: 'player-dashboard' }"
           />
           <v-list-item
+            title="Playbook"
+            prepend-icon="mdi-book-open-variant"
+            :to="{ name: 'playbook' }"
+          />
+          <v-list-item
             title="Meu Perfil"
             prepend-icon="mdi-account"
             :to="{ name: 'player-profile' }"
@@ -58,6 +63,11 @@
             title="Coach Dashboard"
             prepend-icon="mdi-chart-line"
             :to="{ name: 'coach-dashboard' }"
+          />
+          <v-list-item
+            title="Playbook"
+            prepend-icon="mdi-book-open-variant"
+            :to="{ name: 'playbook' }"
           />
           <v-list-item
             title="Treinos"

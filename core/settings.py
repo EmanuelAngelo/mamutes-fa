@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "trainings",
     "combine",
     "dashboard",
+    "playbook",
 ]
 
 MIDDLEWARE = [
