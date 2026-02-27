@@ -354,25 +354,25 @@
           </v-row>
 
             <v-autocomplete
-              v-model="form.user"
-              :items="users"
-              :loading="usersLoading"
-              item-title="label"
-              item-value="id"
-              label="Usuário (opcional)"
+              :model-value="linkedUserDisplay"
+              :loading="linkedUserLoading"
+              label="Usuário"
               variant="outlined"
               density="comfortable"
-              clearable
+              readonly
+              hint="No cadastro, o usuário é criado aqui e vinculado automaticamente. Na edição, este vínculo é travado."
+              persistent-hint
             />
 
             <v-btn
+              v-if="!editing"
               variant="tonal"
               size="small"
               class="mb-4"
-              :disabled="saving"
+              :disabled="saving || !!form.user"
               @click="openCreateUser"
             >
-              Criar usuário
+              Criar usuário e vincular
             </v-btn>
 
             <v-textarea
@@ -475,8 +475,8 @@ type UserItem = {
   label: string
 }
 
-const users = ref<UserItem[]>([])
-const usersLoading = ref(false)
+const linkedUserItem = ref<UserItem | null>(null)
+const linkedUserLoading = ref(false)
 
 const saving = ref(false)
 
@@ -708,23 +708,34 @@ function toUserLabel(u: any): string {
   return `${u.username}${email}`
 }
 
-async function fetchUsers(includeId?: number | null) {
-  usersLoading.value = true
+async function fetchLinkedUser(userId?: number | null) {
+  if (!userId) {
+    linkedUserItem.value = null
+    return
+  }
+
+  linkedUserLoading.value = true
   try {
-    const params: any = { ordering: 'username', unlinked: 1 }
-    if (includeId) params.include = includeId
+    const params: any = { ordering: 'username', unlinked: 0, include: userId }
     const { data } = await http.get('/accounts/users/', { params })
-    users.value = (data || []).map((u: any) => ({ ...u, label: toUserLabel(u) }))
+    const items: UserItem[] = (data || []).map((u: any) => ({ ...u, label: toUserLabel(u) }))
+    linkedUserItem.value = items.find((u) => u.id === userId) ?? null
   } finally {
-    usersLoading.value = false
+    linkedUserLoading.value = false
   }
 }
+
+const linkedUserDisplay = computed(() => {
+  if (linkedUserItem.value) return linkedUserItem.value.label
+  if (!form.value?.user) return ''
+  return `ID ${String(form.value.user)}`
+})
 
 function openNew() {
   editing.value = null
   form.value = emptyForm()
   dialog.value = true
-  fetchUsers(null)
+  linkedUserItem.value = null
   updatePhotoPreview()
 }
 
@@ -738,7 +749,7 @@ function edit(a: any) {
     career_notes: a.career_notes ?? '',
   }
   dialog.value = true
-  fetchUsers(a.user)
+  fetchLinkedUser(a.user)
   updatePhotoPreview()
 }
 
@@ -756,6 +767,8 @@ watch(
 )
 
 function openCreateUser() {
+  if (editing.value) return
+  if (form.value?.user) return
   createUserError.value = null
   createUserForm.value = { username: '', email: '', first_name: '', last_name: '', password: '' }
   createUserDialog.value = true
@@ -778,8 +791,8 @@ async function createUser() {
       last_name: createUserForm.value.last_name.trim() || '',
     })
     const item: UserItem = { ...data, label: toUserLabel(data) }
-    users.value = [...users.value, item].sort((a, b) => a.username.localeCompare(b.username))
     form.value.user = item.id
+    linkedUserItem.value = item
     createUserDialog.value = false
   } catch (e: any) {
     const msg =
@@ -850,7 +863,6 @@ async function confirmRemove() {
 }
 
 onMounted(fetchAthletes)
-onMounted(() => fetchUsers(null))
 onMounted(fetchStats)
 
 let filterTimer: any = null

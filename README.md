@@ -62,6 +62,29 @@ Notas:
 - Banco padrão: `db.sqlite3`
 - Em `DEBUG=True`, mídia é servida via Django (`/media/...`).
 
+### Seed (dados fictícios para teste)
+
+Para facilitar testes no frontend (coach/player) e validar rankings/analytics, existem comandos de seed.
+
+Cria atletas fictícios (20 por padrão):
+
+```bash
+python manage.py seed_athletes --count 20
+```
+
+Cria catálogo de drills + treinos + presença + pontuações (com notas 0..10):
+
+```bash
+python manage.py seed_trainings --trainings 8 --drills 6
+```
+
+Opções úteis:
+- Reproduzível: `--seed 123`
+- Preencher `created_by`/`rated_by` (usa um username existente): `--created-by coach`
+- Ajustar volume de notas/presença:
+  - `--score-fill 0.95` (chance de gerar nota por atleta x drill)
+  - `--attendance-rate 0.90` (chance do atleta estar PRESENT/LATE no treino)
+
 ### Frontend (Vue)
 Dev server em: `http://localhost:3000`
 
