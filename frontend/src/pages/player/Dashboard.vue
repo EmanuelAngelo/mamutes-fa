@@ -16,6 +16,10 @@
 
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
+        <v-alert v-if="error" type="error" variant="tonal" class="mb-4">
+          {{ error }}
+        </v-alert>
+
         <div v-if="loading" class="d-flex justify-center py-10">
           <v-progress-circular
             :model-value="progressValue"
@@ -60,7 +64,7 @@
           </div>
 
           <div v-else class="text-body-2 text-medium-emphasis">
-            Nenhum treino encontrado.
+            {{ emptyMessage }}
           </div>
         </div>
       </v-card-text>
@@ -84,14 +88,30 @@ function formatDateBR(iso: string | null | undefined): string {
 }
 
 const latest = ref<any>(null)
+const error = ref<string | null>(null)
+const emptyMessage = ref('Nenhum treino encontrado.')
 
 async function fetchLatest() {
   loading.value = true
+  error.value = null
+  emptyMessage.value = 'Nenhum treino encontrado.'
   try {
     const { data } = await http.get('/dashboard/my/latest-training/')
     latest.value = data
-  } catch (err) {
-    console.error(err)
+  } catch (err: any) {
+    latest.value = null
+    const status = err?.response?.status
+    const detail = err?.response?.data?.detail
+
+    // O backend usa 404 como "sem dados" (sem atleta vinculado ou sem treino).
+    if (status === 404) {
+      emptyMessage.value = typeof detail === 'string' ? detail : 'Nenhum treino encontrado.'
+      return
+    }
+
+    error.value = status
+      ? `Falha ao carregar dashboard (HTTP ${status}).`
+      : 'Falha ao carregar dashboard.'
   } finally {
     loading.value = false
   }

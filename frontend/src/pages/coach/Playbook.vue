@@ -7,12 +7,12 @@
             <v-icon size="26">mdi-book-open-variant</v-icon>
           </div>
           <div>
-            <div class="text-body-2 text-medium-emphasis">Coach</div>
+            <div class="text-body-2 text-medium-emphasis">{{ readOnly ? 'Player' : 'Coach' }}</div>
             <div class="text-h6 font-weight-bold">Playbook</div>
           </div>
         </div>
 
-        <v-btn color="primary" variant="flat" rounded="xl" @click="openCreate">
+        <v-btn v-if="!readOnly" color="primary" variant="flat" rounded="xl" @click="openCreate">
           <v-icon start>mdi-plus</v-icon>
           Nova Jogada
         </v-btn>
@@ -46,7 +46,14 @@
         <div class="text-body-2 text-medium-emphasis mt-1">
           Adicione jogadas com imagens e explicações
         </div>
-        <v-btn class="mt-5" color="primary" variant="tonal" rounded="xl" @click="openCreate">
+        <v-btn
+          v-if="!readOnly"
+          class="mt-5"
+          color="primary"
+          variant="tonal"
+          rounded="xl"
+          @click="openCreate"
+        >
           <v-icon start>mdi-plus</v-icon>
           Adicionar Jogada
         </v-btn>
@@ -68,7 +75,7 @@
                 </template>
 
                 <div class="play-actions" :class="{ 'play-actions--show': isHovering }">
-                  <v-btn size="small" variant="tonal" @click.stop="openEdit(p)">
+                  <v-btn v-if="!readOnly" size="small" variant="tonal" @click.stop="openEdit(p)">
                     <v-icon start>mdi-pencil</v-icon>
                     Editar
                   </v-btn>
@@ -81,7 +88,13 @@
                   >
                     <v-icon>mdi-magnify-plus-outline</v-icon>
                   </v-btn>
-                  <v-btn size="small" color="error" variant="tonal" @click.stop="requestRemovePlay(p)">
+                  <v-btn
+                    v-if="!readOnly"
+                    size="small"
+                    color="error"
+                    variant="tonal"
+                    @click.stop="requestRemovePlay(p)"
+                  >
                     <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
@@ -108,7 +121,7 @@
       </v-row>
     </div>
 
-    <v-dialog v-model="formOpen" max-width="900">
+    <v-dialog v-if="!readOnly" v-model="formOpen" max-width="900">
       <v-card rounded="xl" class="form-card">
         <v-card-title class="d-flex align-center justify-space-between">
           <div class="text-h6 font-weight-bold">
@@ -257,7 +270,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="confirmClearImageOpen" max-width="520">
+    <v-dialog v-if="!readOnly" v-model="confirmClearImageOpen" max-width="520">
       <v-card rounded="xl">
         <v-card-title class="text-subtitle-1 font-weight-bold">Remover imagem?</v-card-title>
         <v-card-text class="text-body-2 text-medium-emphasis">
@@ -288,7 +301,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="confirmRemovePlayOpen" max-width="520">
+    <v-dialog v-if="!readOnly" v-model="confirmRemovePlayOpen" max-width="520">
       <v-card rounded="xl">
         <v-card-title class="text-subtitle-1 font-weight-bold">Remover jogada?</v-card-title>
         <v-card-text class="text-body-2 text-medium-emphasis">
@@ -327,6 +340,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { http } from '../../api/http'
 import { useProgressCircular } from '../../composables/useProgressCircular'
+
+const props = withDefaults(defineProps<{ readOnly?: boolean }>(), {
+  readOnly: false,
+})
+
+const readOnly = computed(() => props.readOnly)
 
 type Play = {
   id: number
@@ -417,6 +436,7 @@ async function fetchPlays() {
 }
 
 function openCreate() {
+  if (readOnly.value) return
   editingPlay.value = null
   form.value = { title: '', description: '', category: '' }
   imageFile.value = null
@@ -426,6 +446,7 @@ function openCreate() {
 }
 
 function openEdit(p: Play) {
+  if (readOnly.value) return
   editingPlay.value = p
   form.value = {
     title: p.title ?? '',
@@ -478,6 +499,7 @@ function onFileChange(e: Event) {
 }
 
 function requestClearImage() {
+  if (readOnly.value) return
   if (saving.value) return
 
   // Se existe imagem já salva, confirmar antes de marcar para remoção.
@@ -498,6 +520,7 @@ function confirmClearImage() {
 }
 
 async function submit() {
+  if (readOnly.value) return
   if (!form.value.title?.trim()) return
 
   saving.value = true
@@ -533,6 +556,7 @@ async function submit() {
 }
 
 async function removePlay(p: Play) {
+  if (readOnly.value) return
   try {
     await http.delete(`/playbook/plays/${p.id}/`)
     await fetchPlays()
@@ -543,12 +567,14 @@ async function removePlay(p: Play) {
 }
 
 function requestRemovePlay(p: Play) {
+  if (readOnly.value) return
   if (removingPlay.value) return
   playToRemove.value = p
   confirmRemovePlayOpen.value = true
 }
 
 async function confirmRemovePlay() {
+  if (readOnly.value) return
   const p = playToRemove.value
   if (!p?.id) return
 

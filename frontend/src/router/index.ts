@@ -23,6 +23,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/player/Profile.vue'),
         meta: { requiresAuth: true, roles: ['PLAYER'] },
       },
+      {
+        path: 'player/playbook',
+        name: 'player-playbook',
+        component: () => import('@/pages/coach/Playbook.vue'),
+        props: { readOnly: true },
+        meta: { requiresAuth: true, roles: ['PLAYER'] },
+      },
 
       // COACH / ADMIN
       {

@@ -51,6 +51,11 @@
             prepend-icon="mdi-account"
             :to="{ name: 'player-profile' }"
           />
+          <v-list-item
+            title="Playbook"
+            prepend-icon="mdi-book-open-variant"
+            :to="{ name: 'player-playbook' }"
+          />
         </template>
 
         <template v-else>
