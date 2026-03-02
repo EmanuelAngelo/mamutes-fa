@@ -260,8 +260,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { http } from '../../api/http'
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
 type Play = {
   id: number
@@ -273,6 +274,7 @@ type Play = {
 
 const plays = ref<Play[]>([])
 const loading = ref(false)
+const { progressValue } = useProgressCircular(loading)
 const error = ref<string | null>(null)
 
 const formOpen = ref(false)
@@ -298,9 +300,6 @@ const imageViewerSrc = ref<string | null>(null)
 const imageRotation = ref(0)
 
 const imageIsRotated = computed(() => imageRotation.value % 180 !== 0)
-
-const progressValue = ref(0)
-let progressInterval = -1
 
 const previewUrl = computed(() => {
   if (imageFile.value) return URL.createObjectURL(imageFile.value)
@@ -460,20 +459,6 @@ async function removePlay(p: Play) {
 }
 
 onMounted(fetchPlays)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 </script>
 
 <style scoped>

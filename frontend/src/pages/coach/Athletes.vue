@@ -453,12 +453,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
-
-const progressValue = ref(0)
-let progressInterval = -1
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
 const athletes = ref<any[]>([])
 const loadingAthletes = ref(false)
@@ -666,6 +664,9 @@ const filteredAthletes = computed(() => {
 
 const hasNewPhoto = computed(() => form.value.photo instanceof File)
 
+const uploadLoading = computed(() => saving.value && hasNewPhoto.value)
+const { progressValue } = useProgressCircular(uploadLoading)
+
 const statsTotal = computed(() => stats.value.total ?? 0)
 const statsAvgRating = computed(() => Number(stats.value.avg_rating ?? 0).toFixed(1))
 const statsTopPerformerName = computed(() => stats.value.top_performer?.name || '-')
@@ -857,20 +858,6 @@ async function confirmRemove() {
 onMounted(fetchAthletes)
 onMounted(() => fetchUsers(null))
 onMounted(fetchStats)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 
 let filterTimer: any = null
 watch([search, positionFilter], () => {

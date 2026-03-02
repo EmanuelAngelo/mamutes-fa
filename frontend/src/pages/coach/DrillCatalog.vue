@@ -107,12 +107,10 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
-
-const progressValue = ref(0)
-let progressInterval = -1
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
 type DrillCatalog = {
   id: number
@@ -125,6 +123,7 @@ const display = useDisplay()
 
 const drills = ref<DrillCatalog[]>([])
 const loading = ref(false)
+const { progressValue } = useProgressCircular(loading)
 const saving = ref(false)
 const dialog = ref(false)
 const editing = ref<DrillCatalog | null>(null)
@@ -227,20 +226,6 @@ async function remove(d: DrillCatalog) {
 }
 
 onMounted(fetchCatalog)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 </script>
 
 <style scoped>

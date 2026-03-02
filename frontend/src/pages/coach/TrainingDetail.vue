@@ -322,12 +322,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '../../api/http'
-
-const progressValue = ref(0)
-let progressInterval = -1
+import { useProgressCircular } from '../../composables/useProgressCircular'
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -357,6 +355,9 @@ const deletingDrillId = ref<number | null>(null)
 
 const savingScore = ref(false)
 const scoreError = ref<string | null>(null)
+
+const anyLoading = computed(() => loading.value || loadingAttendance.value)
+const { progressValue } = useProgressCircular(anyLoading)
 
 const scoreForm = ref({
   athlete_id: null as number | null,
@@ -651,20 +652,6 @@ watch(
 )
 
 onMounted(fetchCatalog)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 
 watch(
   () => [scoreForm.value.athlete_id, scoreForm.value.training_drill_id],

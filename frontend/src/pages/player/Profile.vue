@@ -217,13 +217,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '../../api/http'
-
-const progressValue = ref(0)
-let progressInterval = -1
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
 const loading = ref(false)
+const { progressValue } = useProgressCircular(loading)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
@@ -422,20 +421,6 @@ async function save() {
 watch(photo, () => updatePhotoPreview())
 
 onMounted(fetchMeAthlete)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 </script>
 
 <style scoped>

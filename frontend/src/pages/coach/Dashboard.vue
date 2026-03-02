@@ -108,14 +108,15 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import PieChart from '../../components/charts/PieChart.vue'
 import { http } from '../../api/http'
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
-const progressValue = ref(0)
-let progressInterval = -1
+const loading = ref(false)
+const { progressValue } = useProgressCircular(loading)
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -126,7 +127,6 @@ function formatDateBR(iso: string | null | undefined): string {
 
 type Item = { label: string; value: number }
 
-const loading = ref(false)
 const error = ref<string | null>(null)
 const trendItems = ref<Item[]>([])
 const drillItems = ref<Item[]>([])
@@ -182,20 +182,6 @@ async function fetchOverview() {
 }
 
 onMounted(fetchOverview)
-
-onMounted(() => {
-  progressInterval = window.setInterval(() => {
-    if (progressValue.value >= 100) {
-      progressValue.value = 0
-      return
-    }
-    progressValue.value += 10
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  window.clearInterval(progressInterval)
-})
 </script>
 
 <style scoped>

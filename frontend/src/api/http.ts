@@ -11,7 +11,7 @@ export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com'
 function resolveApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
-    // if (host === 'localhost' || host === '127.0.0.1') return LOCAL_API_BASE_URL
+    // if (host === 'localhost' || host === '127.0.0.1') return joinUrl(LOCAL_API_BASE_URL, 'api')
   }
   return joinUrl(API_BASE_URL, 'api')
 }
