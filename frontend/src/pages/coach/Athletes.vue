@@ -355,27 +355,25 @@
             </v-col>
           </v-row>
 
-            <v-autocomplete
-              v-model="form.user"
-              :items="users"
-              :loading="usersLoading"
-              item-title="label"
-              item-value="id"
-              label="Usuário (opcional)"
-              variant="outlined"
-              density="comfortable"
-              clearable
-            />
+            <template v-if="!editing">
+              <v-text-field
+                :model-value="createdUserLabel"
+                label="Usuário (opcional)"
+                variant="outlined"
+                density="comfortable"
+                readonly
+              />
 
-            <v-btn
-              variant="tonal"
-              size="small"
-              class="mb-4"
-              :disabled="saving"
-              @click="openCreateUser"
-            >
-              Criar usuário
-            </v-btn>
+              <v-btn
+                variant="tonal"
+                size="small"
+                class="mb-4"
+                :disabled="saving"
+                @click="openCreateUser"
+              >
+                Criar usuário
+              </v-btn>
+            </template>
 
             <v-textarea
               v-model="form.career_notes"
@@ -410,7 +408,13 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="createUserDialog" :fullscreen="display.smAndDown.value" max-width="560" scrollable>
+    <v-dialog
+      v-if="!editing"
+      v-model="createUserDialog"
+      :fullscreen="display.smAndDown.value"
+      max-width="560"
+      scrollable
+    >
       <v-card>
         <v-card-title>Novo usuário</v-card-title>
         <v-card-text>
@@ -478,8 +482,8 @@ type UserItem = {
   label: string
 }
 
-const users = ref<UserItem[]>([])
-const usersLoading = ref(false)
+const createdUser = ref<UserItem | null>(null)
+const createdUserLabel = computed(() => createdUser.value?.label ?? '')
 
 const saving = ref(false)
 
@@ -714,28 +718,18 @@ function toUserLabel(u: any): string {
   return `${u.username}${email}`
 }
 
-async function fetchUsers(includeId?: number | null) {
-  usersLoading.value = true
-  try {
-    const params: any = { ordering: 'username', unlinked: 1 }
-    if (includeId) params.include = includeId
-    const { data } = await http.get('/accounts/users/', { params })
-    users.value = (data || []).map((u: any) => ({ ...u, label: toUserLabel(u) }))
-  } finally {
-    usersLoading.value = false
-  }
-}
-
 function openNew() {
   editing.value = null
+  createUserDialog.value = false
   form.value = emptyForm()
+  createdUser.value = null
   dialog.value = true
-  fetchUsers(null)
   updatePhotoPreview()
 }
 
 function edit(a: any) {
   editing.value = a
+  createUserDialog.value = false
   form.value = {
     ...a,
     photo: null,
@@ -743,15 +737,17 @@ function edit(a: any) {
     birth_city: a.birth_city ?? '',
     career_notes: a.career_notes ?? '',
   }
+  createdUser.value = null
   dialog.value = true
-  fetchUsers(a.user)
   updatePhotoPreview()
 }
 
 watch(dialog, (isOpen) => {
   if (!isOpen) {
     editing.value = null
+    createUserDialog.value = false
     form.value = emptyForm()
+    createdUser.value = null
     updatePhotoPreview()
   }
 })
@@ -762,12 +758,14 @@ watch(
 )
 
 function openCreateUser() {
+  if (editing.value) return
   createUserError.value = null
   createUserForm.value = { username: '', email: '', first_name: '', last_name: '', password: '' }
   createUserDialog.value = true
 }
 
 async function createUser() {
+  if (editing.value) return
   createUserError.value = null
   if (!createUserForm.value.username.trim() || !createUserForm.value.password) {
     createUserError.value = 'Informe username e senha.'
@@ -784,7 +782,7 @@ async function createUser() {
       last_name: createUserForm.value.last_name.trim() || '',
     })
     const item: UserItem = { ...data, label: toUserLabel(data) }
-    users.value = [...users.value, item].sort((a, b) => a.username.localeCompare(b.username))
+    createdUser.value = item
     form.value.user = item.id
     createUserDialog.value = false
   } catch (e: any) {
@@ -809,6 +807,7 @@ async function save() {
       const fd = new FormData()
       for (const [k, v] of Object.entries(form.value)) {
         if (v === null || v === undefined || v === '') continue
+        if (editing.value && k === 'user') continue
         if (k === 'photo') fd.append('photo', v as File)
         else fd.append(k, String(v))
       }
@@ -818,6 +817,7 @@ async function save() {
     } else {
       const payload = { ...form.value }
       delete payload.photo
+      if (editing.value) delete (payload as any).user
       if (editing.value) await http.patch(endpoint, payload)
       else await http.post(endpoint, payload)
     }
@@ -856,7 +856,6 @@ async function confirmRemove() {
 }
 
 onMounted(fetchAthletes)
-onMounted(() => fetchUsers(null))
 onMounted(fetchStats)
 
 let filterTimer: any = null
