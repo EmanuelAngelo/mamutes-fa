@@ -24,7 +24,15 @@
     </v-alert>
 
     <div v-else-if="loading" class="d-flex justify-center py-10">
-      <v-progress-circular indeterminate />
+      <v-progress-circular
+        :model-value="progressValue"
+        :rotate="360"
+        :size="100"
+        :width="15"
+        color="primary"
+      >
+        <template #default>{{ progressValue }} %</template>
+      </v-progress-circular>
     </div>
 
     <div v-else class="mt-4">
@@ -252,7 +260,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { http } from '../../api/http'
 
 type Play = {
@@ -272,7 +280,7 @@ const editingPlay = ref<Play | null>(null)
 const saving = ref(false)
 const formError = ref<string | null>(null)
 
-const categories = ['Ataque', 'Defesa', 'Bola Parada', 'Transição', 'Posse']
+const categories = ['Ataque', 'Defesa']
 
 const form = ref({
   title: '',
@@ -290,6 +298,9 @@ const imageViewerSrc = ref<string | null>(null)
 const imageRotation = ref(0)
 
 const imageIsRotated = computed(() => imageRotation.value % 180 !== 0)
+
+const progressValue = ref(0)
+let progressInterval = -1
 
 const previewUrl = computed(() => {
   if (imageFile.value) return URL.createObjectURL(imageFile.value)
@@ -449,6 +460,20 @@ async function removePlay(p: Play) {
 }
 
 onMounted(fetchPlays)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 </script>
 
 <style scoped>

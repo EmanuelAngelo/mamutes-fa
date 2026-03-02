@@ -46,7 +46,15 @@
     </v-card>
 
     <div v-else-if="loading" class="d-flex justify-center py-10">
-      <v-progress-circular indeterminate />
+      <v-progress-circular
+        :model-value="progressValue"
+        :rotate="360"
+        :size="100"
+        :width="15"
+        color="primary"
+      >
+        <template #default>{{ progressValue }} %</template>
+      </v-progress-circular>
     </div>
 
     <div v-else-if="dashboard">
@@ -73,7 +81,16 @@
             {{ attendanceError }}
           </v-alert>
 
-          <v-progress-circular v-if="loadingAttendance" indeterminate />
+          <v-progress-circular
+            v-if="loadingAttendance"
+            :model-value="progressValue"
+            :rotate="360"
+            :size="64"
+            :width="10"
+            color="primary"
+          >
+            <template #default>{{ progressValue }} %</template>
+          </v-progress-circular>
 
           <div v-else class="table-scroll">
             <v-table>
@@ -305,9 +322,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '../../api/http'
+
+const progressValue = ref(0)
+let progressInterval = -1
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -631,6 +651,20 @@ watch(
 )
 
 onMounted(fetchCatalog)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 
 watch(
   () => [scoreForm.value.athlete_id, scoreForm.value.training_drill_id],

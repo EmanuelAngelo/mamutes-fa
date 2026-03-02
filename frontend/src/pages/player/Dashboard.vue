@@ -17,7 +17,15 @@
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
         <div v-if="loading" class="d-flex justify-center py-10">
-          <v-progress-circular indeterminate />
+          <v-progress-circular
+            :model-value="progressValue"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="primary"
+          >
+            <template #default>{{ progressValue }} %</template>
+          </v-progress-circular>
         </div>
 
         <div v-else>
@@ -61,8 +69,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { http } from '../../api/http'
+
+const progressValue = ref(0)
+let progressInterval = -1
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -87,6 +98,20 @@ async function fetchLatest() {
 }
 
 onMounted(fetchLatest)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 </script>
 
 <style scoped>

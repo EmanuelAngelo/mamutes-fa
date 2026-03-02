@@ -5,9 +5,6 @@ class Play(models.Model):
     class Category(models.TextChoices):
         ATAQUE = "Ataque", "Ataque"
         DEFESA = "Defesa", "Defesa"
-        BOLA_PARADA = "Bola Parada", "Bola Parada"
-        TRANSICAO = "Transição", "Transição"
-        POSSE = "Posse", "Posse"
 
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True, null=True)

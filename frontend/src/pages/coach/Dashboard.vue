@@ -33,7 +33,15 @@
     </v-alert>
 
     <div v-if="loading" class="d-flex justify-center py-10">
-      <v-progress-circular indeterminate />
+      <v-progress-circular
+        :model-value="progressValue"
+        :rotate="360"
+        :size="100"
+        :width="15"
+        color="primary"
+      >
+        <template #default>{{ progressValue }} %</template>
+      </v-progress-circular>
     </div>
 
     <v-row v-else class="mt-1">
@@ -100,11 +108,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import PieChart from '../../components/charts/PieChart.vue'
 import { http } from '../../api/http'
+
+const progressValue = ref(0)
+let progressInterval = -1
 function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const m = /^\d{4}-\d{2}-\d{2}$/.exec(iso)
@@ -171,6 +182,20 @@ async function fetchOverview() {
 }
 
 onMounted(fetchOverview)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 </script>
 
 <style scoped>

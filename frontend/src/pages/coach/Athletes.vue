@@ -227,9 +227,11 @@
                 <div class="athlete-form__photo-overlay" :class="{ 'is-visible': saving }">
                   <v-progress-circular
                     v-if="saving && hasNewPhoto"
-                    indeterminate
+                    :model-value="progressValue"
+                    :rotate="360"
                     size="26"
                     width="3"
+                    color="primary"
                   />
                   <v-icon v-else size="26">mdi-upload</v-icon>
                 </div>
@@ -451,9 +453,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
+
+const progressValue = ref(0)
+let progressInterval = -1
 
 const athletes = ref<any[]>([])
 const loadingAthletes = ref(false)
@@ -852,6 +857,20 @@ async function confirmRemove() {
 onMounted(fetchAthletes)
 onMounted(() => fetchUsers(null))
 onMounted(fetchStats)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 
 let filterTimer: any = null
 watch([search, positionFilter], () => {

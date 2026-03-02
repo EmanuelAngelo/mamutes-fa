@@ -45,7 +45,15 @@
         <v-alert v-if="success" type="success" variant="tonal" class="mb-3">Dados atualizados.</v-alert>
 
         <div v-if="loading" class="d-flex justify-center py-10">
-          <v-progress-circular indeterminate />
+          <v-progress-circular
+            :model-value="progressValue"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="primary"
+          >
+            <template #default>{{ progressValue }} %</template>
+          </v-progress-circular>
         </div>
 
         <template v-else>
@@ -209,8 +217,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { http } from '../../api/http'
+
+const progressValue = ref(0)
+let progressInterval = -1
 
 const loading = ref(false)
 const saving = ref(false)
@@ -411,6 +422,20 @@ async function save() {
 watch(photo, () => updatePhotoPreview())
 
 onMounted(fetchMeAthlete)
+
+onMounted(() => {
+  progressInterval = window.setInterval(() => {
+    if (progressValue.value >= 100) {
+      progressValue.value = 0
+      return
+    }
+    progressValue.value += 10
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(progressInterval)
+})
 </script>
 
 <style scoped>
