@@ -21,7 +21,21 @@
 
     <v-card variant="tonal" rounded="xl" class="mt-4">
       <v-card-text>
-        <div class="table-scroll">
+        <v-alert v-if="error" type="error" variant="tonal" class="mb-3">{{ error }}</v-alert>
+
+        <div v-if="loading" class="d-flex justify-center py-10">
+          <v-progress-circular
+            :model-value="progressValue"
+            :rotate="360"
+            :size="100"
+            :width="15"
+            color="primary"
+          >
+            <template #default>{{ progressValue }} %</template>
+          </v-progress-circular>
+        </div>
+
+        <div v-else class="table-scroll">
           <v-table>
             <thead>
               <tr>
@@ -102,8 +116,12 @@
 import { onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { http } from '../../api/http'
+import { useProgressCircular } from '../../composables/useProgressCircular'
 
 const trainings = ref<any[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const { progressValue } = useProgressCircular(loading)
 const dialog = ref(false)
 const display = useDisplay()
 const dateMenu = ref(false)
@@ -156,8 +174,18 @@ watch(dialog, (isOpen) => {
 })
 
 async function fetchTrainings() {
-  const { data } = await http.get('/trainings/?ordering=-date')
-  trainings.value = data
+  loading.value = true
+  error.value = null
+  try {
+    const { data } = await http.get('/trainings/?ordering=-date')
+    trainings.value = data
+  } catch (e: any) {
+    const status = e?.response?.status
+    error.value = status ? `Falha ao carregar treinos (HTTP ${status}).` : 'Falha ao carregar treinos.'
+    trainings.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createTraining() {
@@ -167,7 +195,7 @@ async function createTraining() {
     await http.post('/trainings/', form.value)
     dialog.value = false
     form.value = emptyForm()
-    fetchTrainings()
+    await fetchTrainings()
   } finally {
     saving.value = false
   }

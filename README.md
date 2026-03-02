@@ -30,6 +30,9 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
   - CRUD de atletas com foto
   - listagem em cards (layout “FIFA-style”) + métricas vindas da API
   - métricas agregadas (`/api/athletes/stats/`) e `rating` por atleta
+  - Regras de usuário (login) no cadastro de atleta:
+    - no cadastro de atleta novo: é possível apenas **criar** um novo usuário (não lista/seleciona usuários existentes)
+    - ao editar atleta: não é possível criar/vincular/alterar usuário
 - Catálogo de drills: CRUD básico
 
 - Combine: catálogo de testes, eventos e resultados
@@ -44,6 +47,8 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
 - Layout com `NavigationDrawer` em modo `rail` (compacto) + header com perfil e toggle
 - Drawer usa a foto real do atleta (quando existir), com fallback para avatar por iniciais
 - Padrão visual: headers “sticky” com blur + cards `tonal` arredondados
+- Loading padrão com `%` (determinate): ciclo de ~5s e continua em loop enquanto a API não finalizar
+  - composable: `frontend/src/composables/useProgressCircular.ts`
 
 ## Como rodar (dev)
 
@@ -65,10 +70,35 @@ python manage.py runserver
 Notas:
 - Banco padrão: `db.sqlite3`
 - Em `DJANGO_DEBUG=1` (default), mídia é servida via Django (`/media/...`).
+- A pasta `media/` não é versionada (ver `.gitignore`).
 
 Variáveis de ambiente (opcional):
 - `DJANGO_DEBUG=1` ou `DJANGO_DEBUG=0`
 - `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,seu-dominio.com`
+
+#### Seed de dados (dev/demo)
+Cria atletas (com foto), catálogo de drills, treinos, presença e notas. Opcionalmente, também semeia dados do Combine.
+
+Dica (Windows): se você não ativou o venv, rode com `venv/Scripts/python.exe manage.py seed_random_data`.
+
+```bash
+# básico
+python manage.py seed_random_data
+
+# com reset + seed fixo
+python manage.py seed_random_data --reset --seed 123
+
+# parâmetros principais
+python manage.py seed_random_data --athletes 30 --trainings 12 --catalog 20 --drills-min 6 --drills-max 10
+
+# inclui combine (se o app existir)
+python manage.py seed_random_data --with-combine
+```
+
+Parâmetros úteis:
+- `--reset`: apaga dados de atletas/treinos (e combine se `--with-combine`) antes de semear
+- `--seed`: semente para resultados determinísticos
+- `--score-missing-rate`: chance de não gerar nota (0-1)
 
 ### Frontend (Vue)
 Dev server em: `http://localhost:3000`
