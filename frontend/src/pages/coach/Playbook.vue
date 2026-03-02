@@ -81,7 +81,7 @@
                   >
                     <v-icon>mdi-magnify-plus-outline</v-icon>
                   </v-btn>
-                  <v-btn size="small" color="error" variant="tonal" @click.stop="removePlay(p)">
+                  <v-btn size="small" color="error" variant="tonal" @click.stop="requestRemovePlay(p)">
                     <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
@@ -142,7 +142,7 @@
                     <v-icon start>mdi-upload</v-icon>
                     Trocar
                   </v-btn>
-                  <v-btn size="small" color="error" variant="tonal" @click="clearImage">
+                  <v-btn size="small" color="error" variant="tonal" @click="requestClearImage">
                     <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
@@ -256,6 +256,70 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="confirmClearImageOpen" max-width="520">
+      <v-card rounded="xl">
+        <v-card-title class="text-subtitle-1 font-weight-bold">Remover imagem?</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Esta ação remove a imagem desta jogada. Você pode adicionar outra imagem depois.
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-btn
+            class="flex-grow-1"
+            variant="tonal"
+            rounded="xl"
+            :disabled="saving"
+            @click="confirmClearImageOpen = false"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            class="flex-grow-1"
+            color="error"
+            variant="flat"
+            rounded="xl"
+            :disabled="saving"
+            @click="confirmClearImage"
+          >
+            <v-icon start>mdi-trash-can-outline</v-icon>
+            Remover
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="confirmRemovePlayOpen" max-width="520">
+      <v-card rounded="xl">
+        <v-card-title class="text-subtitle-1 font-weight-bold">Remover jogada?</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Tem certeza que deseja remover a jogada
+          <span class="font-weight-medium">"{{ playToRemove?.title }}"</span>?
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-btn
+            class="flex-grow-1"
+            variant="tonal"
+            rounded="xl"
+            :disabled="removingPlay"
+            @click="confirmRemovePlayOpen = false"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            class="flex-grow-1"
+            color="error"
+            variant="flat"
+            rounded="xl"
+            :loading="removingPlay"
+            :disabled="!playToRemove"
+            @click="confirmRemovePlay"
+          >
+            <v-icon start>mdi-trash-can-outline</v-icon>
+            Remover
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -282,6 +346,10 @@ const editingPlay = ref<Play | null>(null)
 const saving = ref(false)
 const formError = ref<string | null>(null)
 
+const confirmRemovePlayOpen = ref(false)
+const playToRemove = ref<Play | null>(null)
+const removingPlay = ref(false)
+
 const categories = ['Ataque', 'Defesa']
 
 const form = ref({
@@ -294,6 +362,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const imageFile = ref<File | null>(null)
 const dragOver = ref(false)
 const clearImageFlag = ref(false)
+const confirmClearImageOpen = ref(false)
 
 const imageViewerOpen = ref(false)
 const imageViewerSrc = ref<string | null>(null)
@@ -374,6 +443,7 @@ function closeForm() {
   editingPlay.value = null
   imageFile.value = null
   clearImageFlag.value = false
+  confirmClearImageOpen.value = false
   dragOver.value = false
 }
 
@@ -407,9 +477,24 @@ function onFileChange(e: Event) {
   input.value = ''
 }
 
-function clearImage() {
+function requestClearImage() {
+  if (saving.value) return
+
+  // Se existe imagem já salva, confirmar antes de marcar para remoção.
+  if (editingPlay.value?.image_url) {
+    confirmClearImageOpen.value = true
+    return
+  }
+
+  // Caso contrário, é só limpar a seleção local (ex: criando jogada).
+  imageFile.value = null
+  clearImageFlag.value = false
+}
+
+function confirmClearImage() {
   imageFile.value = null
   clearImageFlag.value = true
+  confirmClearImageOpen.value = false
 }
 
 async function submit() {
@@ -448,13 +533,32 @@ async function submit() {
 }
 
 async function removePlay(p: Play) {
-  if (!confirm(`Remover a jogada "${p.title}"?`)) return
   try {
     await http.delete(`/playbook/plays/${p.id}/`)
     await fetchPlays()
   } catch (e: any) {
     const status = e?.response?.status
     error.value = status ? `Falha ao remover (HTTP ${status}).` : 'Falha ao remover.'
+  }
+}
+
+function requestRemovePlay(p: Play) {
+  if (removingPlay.value) return
+  playToRemove.value = p
+  confirmRemovePlayOpen.value = true
+}
+
+async function confirmRemovePlay() {
+  const p = playToRemove.value
+  if (!p?.id) return
+
+  removingPlay.value = true
+  try {
+    await removePlay(p)
+    confirmRemovePlayOpen.value = false
+    playToRemove.value = null
+  } finally {
+    removingPlay.value = false
   }
 }
 
