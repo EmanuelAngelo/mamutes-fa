@@ -55,6 +55,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/coach/DrillCatalog.vue'),
         meta: { requiresAuth: true, roles: ['COACH', 'ADMIN'] },
       },
+      {
+        path: 'coach/playbook',
+        name: 'coach-playbook',
+        component: () => import('@/pages/coach/Playbook.vue'),
+        meta: { requiresAuth: true, roles: ['COACH', 'ADMIN'] },
+      },
     ],
   },
 ]

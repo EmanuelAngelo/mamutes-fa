@@ -1,12 +1,13 @@
 # Mamutes F.A. — Plataforma de Gestão de Flag Football
 
-Plataforma para gestão técnica do time: atletas, treinos, presença, drills, notas, rankings, dashboards e relatórios.
+Plataforma para gestão técnica do time: atletas, treinos, presença, drills, notas, rankings, dashboards, relatórios e playbook de jogadas.
 
 ## Stack
-- Backend: Django 5 + Django REST Framework + SimpleJWT + SQLite
+- Backend: Django 6 + Django REST Framework + SimpleJWT + SQLite
 - Frontend: Vue 3 + Vuetify 4 + Vite + Pinia + Vue Router
 - Gráficos: Chart.js (`vue-chartjs`)
-- Relatórios: PDF/CSV (ReportLab + CSV)
+- Upload de mídia: Pillow (fotos de atletas e imagens de jogadas)
+- Relatórios: PDF/CSV (ReportLab)
 
 ## O que já existe (até agora)
 
@@ -30,6 +31,9 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
   - listagem em cards (layout “FIFA-style”) + métricas vindas da API
   - métricas agregadas (`/api/athletes/stats/`) e `rating` por atleta
 - Catálogo de drills: CRUD básico
+
+- Combine: catálogo de testes, eventos e resultados
+- Playbook: CRUD de jogadas com upload de imagem
 
 ### Player
 - Dashboard do player
@@ -60,15 +64,25 @@ python manage.py runserver
 
 Notas:
 - Banco padrão: `db.sqlite3`
-- Em `DEBUG=True`, mídia é servida via Django (`/media/...`).
+- Em `DJANGO_DEBUG=1` (default), mídia é servida via Django (`/media/...`).
+
+Variáveis de ambiente (opcional):
+- `DJANGO_DEBUG=1` ou `DJANGO_DEBUG=0`
+- `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,seu-dominio.com`
 
 ### Frontend (Vue)
 Dev server em: `http://localhost:3000`
 
 ```bash
 cd frontend
+
+# escolha um
 npm install
 npm run dev
+
+# ou
+pnpm install
+pnpm dev
 ```
 
 Config de API do frontend:
@@ -114,6 +128,24 @@ Catálogo e recursos:
 Export (admin/coach):
 - `GET /api/trainings/{id}/export/pdf/`
 - `GET /api/trainings/{id}/export/csv/`
+
+### Dashboard (player)
+- `GET /api/dashboard/my/latest-training/`
+- `GET /api/dashboard/my/drill-trends/`
+- `GET /api/dashboard/my/improvements/`
+
+### Combine
+- `GET/POST /api/combine/tests/`
+- `GET/POST /api/combine/events/`
+- `GET/POST /api/combine/results/`
+
+### Playbook
+- `GET/POST /api/playbook/plays/`
+- `GET/PATCH/DELETE /api/playbook/plays/{id}/`
+
+Upload de imagem:
+- Envie multipart com o campo `image`
+- Para remover a imagem: `PATCH` com `clear_image=true`
 
 ## Branding do PDF
 Config em `core/settings.py`:

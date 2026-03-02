@@ -65,6 +65,11 @@
             :to="{ name: 'coach-trainings' }"
           />
           <v-list-item
+            title="Playbook"
+            prepend-icon="mdi-book-open-variant"
+            :to="{ name: 'coach-playbook' }"
+          />
+          <v-list-item
             title="Atletas"
             prepend-icon="mdi-account-group"
             :to="{ name: 'coach-athletes' }"
