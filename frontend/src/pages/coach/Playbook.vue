@@ -265,7 +265,7 @@
                 @update:routeType="routeType = $event"
                 @finishRoute="finishRoute"
                 @cancelRoute="cancelRoute"
-                @clearRoutes="routes = []"
+                @clearRoutes="clearRoutes"
                 @save="openMetaDialog"
               />
             </v-col>
@@ -736,6 +736,11 @@ function finishRoute() {
   if (!drawingRoute.value) return
   if ((drawingRoute.value.points ?? []).length < 2) return
   routes.value = [...routes.value, drawingRoute.value]
+  drawingRoute.value = null
+}
+
+function clearRoutes() {
+  routes.value = []
   drawingRoute.value = null
 }
 

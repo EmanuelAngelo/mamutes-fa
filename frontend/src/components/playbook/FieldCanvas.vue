@@ -358,6 +358,22 @@ function findPlayerAt(x: number, y: number) {
   return props.players.find((p) => Math.hypot(p.x - x, p.y - y) < 20)
 }
 
+function distPointToSegmentSq(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const abx = bx - ax
+  const aby = by - ay
+  const apx = px - ax
+  const apy = py - ay
+  const abLenSq = abx * abx + aby * aby
+  if (abLenSq <= 1e-6) return apx * apx + apy * apy
+  let t = (apx * abx + apy * aby) / abLenSq
+  t = Math.max(0, Math.min(1, t))
+  const cx = ax + t * abx
+  const cy = ay + t * aby
+  const dx = px - cx
+  const dy = py - cy
+  return dx * dx + dy * dy
+}
+
 function handlePointerDown(e: PointerEvent) {
   if (readOnly.value) return
   const canvas = canvasRef.value
@@ -399,10 +415,32 @@ function handlePointerDown(e: PointerEvent) {
   }
 
   if (props.mode === 'erase') {
-    const idx = props.routes.findIndex((r) =>
-      (r.points ?? []).some((pt) => Math.hypot(pt.x - pos.x, pt.y - pos.y) < 15),
-    )
-    if (idx >= 0) emit('routeErase', idx)
+    const threshold = 14
+    const thSq = threshold * threshold
+    let bestIdx = -1
+    let bestDist = Number.POSITIVE_INFINITY
+
+    for (let i = 0; i < props.routes.length; i++) {
+      const r = props.routes[i]
+      const pts = r?.points ?? []
+      if (pts.length < 2) continue
+
+      let minDist = Number.POSITIVE_INFINITY
+      for (let j = 1; j < pts.length; j++) {
+        const a = pts[j - 1]
+        const b = pts[j]
+        if (!a || !b) continue
+        const d = distPointToSegmentSq(pos.x, pos.y, a.x, a.y, b.x, b.y)
+        if (d < minDist) minDist = d
+      }
+
+      if (minDist < bestDist) {
+        bestDist = minDist
+        bestIdx = i
+      }
+    }
+
+    if (bestIdx >= 0 && bestDist <= thSq) emit('routeErase', bestIdx)
   }
 }
 
