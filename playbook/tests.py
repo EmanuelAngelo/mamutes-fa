@@ -18,7 +18,7 @@ class PlaybookPermissionsTests(APITestCase):
         self.coach_user.profile.role = Profile.Role.COACH
         self.coach_user.profile.save(update_fields=["role"])
 
-        self.play = Play.objects.create(title="Play 1", description="Desc", category="Ataque")
+        self.play = Play.objects.create(name="Play 1", description="Desc", category="Ataque")
 
         self.list_url = reverse("playbook-plays-list")
         self.detail_url = reverse("playbook-plays-detail", args=[self.play.id])
@@ -30,7 +30,7 @@ class PlaybookPermissionsTests(APITestCase):
 
     def test_player_cannot_create(self):
         self.client.force_authenticate(user=self.player_user)
-        resp = self.client.post(self.list_url, {"title": "New", "description": "x"}, format="json")
+        resp = self.client.post(self.list_url, {"name": "New", "description": "x"}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_player_cannot_delete(self):
@@ -38,11 +38,25 @@ class PlaybookPermissionsTests(APITestCase):
         resp = self.client.delete(self.detail_url)
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_player_cannot_clone(self):
+        self.client.force_authenticate(user=self.player_user)
+        clone_url = reverse("playbook-plays-clone", args=[self.play.id])
+        resp = self.client.post(clone_url, {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_coach_can_create(self):
         self.client.force_authenticate(user=self.coach_user)
         resp = self.client.post(
             self.list_url,
-            {"title": "New", "description": "x", "category": "Defesa"},
+            {"name": "New", "description": "x", "category": "Defesa"},
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    def test_coach_can_clone(self):
+        self.client.force_authenticate(user=self.coach_user)
+        clone_url = reverse("playbook-plays-clone", args=[self.play.id])
+        resp = self.client.post(clone_url, {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertIn("name", resp.data)
+        self.assertNotEqual(resp.data["id"], self.play.id)

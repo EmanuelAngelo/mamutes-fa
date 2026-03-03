@@ -36,7 +36,7 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
 - Catálogo de drills: CRUD básico
 
 - Combine: catálogo de testes, eventos e resultados
-- Playbook: CRUD de jogadas com upload de imagem
+- Playbook: designer de jogadas (jogadores + rotas + tags) + CRUD
 
 ### Player
 - Dashboard do player
@@ -172,6 +172,35 @@ Export (admin/coach):
 ### Playbook
 - `GET/POST /api/playbook/plays/`
 - `GET/PATCH/DELETE /api/playbook/plays/{id}/`
+- `POST /api/playbook/plays/{id}/clone/` (admin/coach)
+
+Recursos (frontend):
+- Designer (canvas) para posicionar jogadores e desenhar rotas
+- Campo "Lado": `Ataque` / `Defesa` (`category`)
+- `formation` e `play_type` são textos livres (cadastra na hora)
+- Cards com preview (SVG), botão **Ver** (somente leitura) e **Duplicar** (coach/admin)
+- Player acessa Playbook em modo `readOnly` (sem editar/duplicar/remover)
+
+Rotas (frontend):
+- Coach/Admin: `/coach/playbook`
+- Player (somente leitura): `/player/playbook`
+
+Permissões (API):
+- `GET` (list/detail): qualquer usuário autenticado
+- `POST/PATCH/DELETE/clone`: apenas `ADMIN` e `COACH`
+
+Schema (Play):
+- `name`: string
+- `description`: string | null
+- `category`: "Ataque" | "Defesa" | null
+- `formation`: string (livre)
+- `play_type`: string (livre)
+- `tags`: string[]
+- `players`: array de `{ id, x, y, role?, team?, label? }`
+- `routes`: array de `{ player_id, points: [{x,y}], type?, color? }`
+
+Observações:
+- Campos antigos de imagem ainda existem (legado): `image` e `image_url`. O fluxo principal agora é via designer.
 
 Upload de imagem:
 - Envie multipart com o campo `image`

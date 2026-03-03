@@ -44,7 +44,7 @@
         </div>
         <div class="text-h6 font-weight-bold">Playbook vazio</div>
         <div class="text-body-2 text-medium-emphasis mt-1">
-          Adicione jogadas com imagens e explicações
+          Adicione jogadas com formações, jogadores e rotas
         </div>
         <v-btn
           v-if="!readOnly"
@@ -63,30 +63,83 @@
         <v-col v-for="p in plays" :key="p.id" cols="12" sm="6" lg="4">
           <v-hover v-slot="{ isHovering, props }">
             <v-card v-bind="props" variant="tonal" rounded="xl" class="play-card">
-              <div class="play-image">
-                <template v-if="p.image_url">
-                  <v-img :src="p.image_url" height="208" cover />
-                </template>
-                <template v-else>
-                  <div class="play-image__placeholder">
-                    <v-icon size="46" class="text-medium-emphasis">mdi-image-off-outline</v-icon>
-                    <div class="text-body-2 text-medium-emphasis mt-2">Sem imagem</div>
-                  </div>
-                </template>
+              <div class="play-preview">
+                <svg class="play-preview__svg" viewBox="0 0 500 700" aria-label="Preview da jogada">
+                  <defs>
+                    <filter id="pbShadow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.35)" />
+                    </filter>
+                  </defs>
+                  <rect x="0" y="0" width="500" height="700" class="play-preview__field" />
+                  <g class="play-preview__lines">
+                    <line v-for="y in [70, 150, 230, 310, 390, 470, 550, 630]" :key="y" x1="0" :y1="y" x2="500" :y2="y" />
+                  </g>
+                  <g>
+                    <polyline
+                      v-for="(r, idx) in p.routes || []"
+                      :key="`r-${p.id}-${idx}`"
+                      :points="routePointsAttr(r)"
+                      fill="none"
+                      :stroke="routeStroke(r)"
+                      stroke-width="7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      :stroke-dasharray="r.type === 'block' ? '10 10' : undefined"
+                      opacity="0.95"
+                    />
+                    <polygon
+                      v-for="(r, idx) in p.routes || []"
+                      :key="`a-${p.id}-${idx}`"
+                      :points="routeArrowPointsAttr(r)"
+                      :fill="routeStroke(r)"
+                      opacity="0.95"
+                    />
+                  </g>
+                  <g>
+                    <circle
+                      v-for="pl in p.players || []"
+                      :key="`p-${p.id}-${pl.id}`"
+                      :cx="pl.x"
+                      :cy="pl.y"
+                      r="18"
+                      :fill="pl.team === 'defense' ? 'rgb(var(--v-theme-error))' : 'rgb(var(--v-theme-info))'"
+                      stroke="rgba(255,255,255,0.85)"
+                      stroke-width="3"
+                      filter="url(#pbShadow)"
+                    />
+                    <text
+                      v-for="pl in p.players || []"
+                      :key="`t-${p.id}-${pl.id}`"
+                      :x="pl.x"
+                      :y="pl.y"
+                      text-anchor="middle"
+                      dominant-baseline="middle"
+                      class="play-preview__label"
+                    >
+                      {{ playerLabel(pl) }}
+                    </text>
+                  </g>
+                </svg>
 
                 <div class="play-actions" :class="{ 'play-actions--show': isHovering }">
+                  <v-btn size="small" variant="tonal" @click.stop="openView(p)">
+                    <v-icon start>mdi-eye</v-icon>
+                    Ver
+                  </v-btn>
                   <v-btn v-if="!readOnly" size="small" variant="tonal" @click.stop="openEdit(p)">
                     <v-icon start>mdi-pencil</v-icon>
                     Editar
                   </v-btn>
                   <v-btn
-                    v-if="p.image_url"
+                    v-if="!readOnly"
                     size="small"
                     variant="tonal"
-                    aria-label="Ver imagem"
-                    @click.stop="openImageViewer(p.image_url)"
+                    :loading="cloningPlayId === p.id"
+                    :disabled="cloningPlayId === p.id"
+                    @click.stop="clonePlay(p)"
                   >
-                    <v-icon>mdi-magnify-plus-outline</v-icon>
+                    <v-icon start>mdi-content-copy</v-icon>
+                    Duplicar
                   </v-btn>
                   <v-btn
                     v-if="!readOnly"
@@ -98,21 +151,36 @@
                     <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
-
-                <div v-if="p.category" class="play-badge">
-                  <v-chip size="small" variant="tonal" :color="categoryColor(p.category)">
-                    {{ p.category }}
-                  </v-chip>
-                </div>
               </div>
 
               <v-card-text>
-                <div class="text-subtitle-1 font-weight-bold text-truncate">{{ p.title }}</div>
+                <div class="d-flex align-center justify-space-between ga-2">
+                  <div class="text-subtitle-1 font-weight-bold text-truncate">{{ p.name }}</div>
+                  <div class="d-flex align-center ga-2">
+                    <v-chip v-if="p.category" size="small" variant="tonal" :color="categoryColor(p.category)">
+                      {{ p.category }}
+                    </v-chip>
+                    <v-chip size="small" variant="tonal" :color="playTypeColor(p.play_type)">
+                      {{ playTypeLabel(p.play_type) }}
+                    </v-chip>
+                  </div>
+                </div>
                 <div v-if="p.description" class="text-body-2 text-medium-emphasis mt-1 line-clamp-3">
                   {{ p.description }}
                 </div>
                 <div v-else class="text-body-2 text-medium-emphasis mt-1 font-italic">
                   Sem descrição
+                </div>
+
+                <div v-if="p.tags.length" class="d-flex flex-wrap ga-2 mt-3">
+                  <v-chip
+                    v-for="(t, idx) in p.tags.slice(0, 4)"
+                    :key="`${p.id}-tag-${idx}`"
+                    size="x-small"
+                    variant="tonal"
+                  >
+                    {{ t }}
+                  </v-chip>
                 </div>
               </v-card-text>
             </v-card>
@@ -121,17 +189,16 @@
       </v-row>
     </div>
 
-    <v-dialog v-if="!readOnly" v-model="formOpen" max-width="900">
-      <v-card rounded="xl" class="form-card">
+    <v-dialog v-if="!readOnly" v-model="designerOpen" max-width="1200" scrollable>
+      <v-card rounded="xl" class="designer-card">
         <v-card-title class="d-flex align-center justify-space-between">
           <div class="text-h6 font-weight-bold">
             {{ editingPlay ? 'Editar Jogada' : 'Nova Jogada' }}
           </div>
-          <v-btn icon variant="text" @click="closeForm">
+          <v-btn icon variant="text" @click="closeDesigner">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
-
         <v-divider />
 
         <v-card-text>
@@ -139,164 +206,173 @@
             {{ formError }}
           </v-alert>
 
-          <div
-            class="dropzone"
-            :class="{ 'dropzone--over': dragOver }"
-            @dragover.prevent="onDragOver"
-            @dragleave.prevent="dragOver = false"
-            @drop.prevent="onDrop"
-            @click="openFilePicker"
-          >
-            <template v-if="previewUrl">
-              <div class="dropzone__preview">
-                <img :src="previewUrl" alt="Preview" />
-                <div class="dropzone__overlay" @click.stop>
-                  <v-btn size="small" variant="tonal" @click="openFilePicker">
-                    <v-icon start>mdi-upload</v-icon>
-                    Trocar
-                  </v-btn>
-                  <v-btn size="small" color="error" variant="tonal" @click="requestClearImage">
-                    <v-icon>mdi-trash-can-outline</v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="dropzone__empty">
-                <v-avatar size="64" variant="tonal">
-                  <v-icon size="28">mdi-upload</v-icon>
-                </v-avatar>
-                <div class="text-subtitle-2 font-weight-bold mt-3">Clique para fazer upload</div>
-                <div class="text-body-2 text-medium-emphasis">ou arraste a imagem aqui</div>
-                <div class="text-caption text-medium-emphasis mt-1">PNG, JPG, GIF</div>
-              </div>
-            </template>
-
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              class="d-none"
-              @change="onFileChange"
-            />
-          </div>
-
-          <v-row class="mt-4" density="comfortable">
-            <v-col cols="12" md="6">
-              <v-text-field
-                v-model="form.title"
-                label="Título da Jogada"
-                variant="outlined"
-                :disabled="saving"
-                required
+          <v-row density="comfortable">
+            <v-col cols="12" lg="8">
+              <FieldCanvas
+                :players="players"
+                :routes="routes"
+                :selected-player-id="selectedPlayerId"
+                :mode="mode"
+                :route-color="routeColor"
+                :route-type="routeType"
+                :drawing-route="drawingRoute"
+                @playerMove="onPlayerMove"
+                @playerSelect="selectedPlayerId = $event"
+                @routeAdd="onRouteAdd"
+                @routeErase="onRouteErase"
+                @update:drawingRoute="drawingRoute = $event"
               />
+
+              <v-card variant="tonal" rounded="xl" class="mt-4">
+                <v-card-text class="text-body-2 text-medium-emphasis">
+                  <div><b>Mover:</b> arraste os jogadores.</div>
+                  <div><b>Rota:</b> clique para pontos e duplo-clique para finalizar.</div>
+                  <div><b>Apagar:</b> clique próximo a uma rota para remover.</div>
+                </v-card-text>
+              </v-card>
+            </v-col>
+
+            <v-col cols="12" lg="4">
+              <PlayToolbar
+                :mode="mode"
+                :route-color="routeColor"
+                :route-type="routeType"
+                :drawing="Boolean(drawingRoute)"
+                :saving="saving"
+                @update:mode="mode = $event"
+                @update:routeColor="routeColor = $event"
+                @update:routeType="routeType = $event"
+                @finishRoute="finishRoute"
+                @cancelRoute="cancelRoute"
+                @clearRoutes="routes = []"
+                @save="openMetaDialog"
+              />
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="viewerOpen" max-width="1200" scrollable>
+      <v-card rounded="xl" class="designer-card">
+        <v-card-title class="d-flex align-center justify-space-between">
+          <div class="text-h6 font-weight-bold">{{ viewingPlay?.name || 'Jogada' }}</div>
+          <v-btn icon variant="text" @click="closeView">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-divider />
+        <v-card-text>
+          <v-row density="comfortable">
+            <v-col cols="12" lg="8">
+              <FieldCanvas
+                :players="viewerPlayers"
+                :routes="viewerRoutes"
+                :selected-player-id="null"
+                mode="move"
+                route-color="warning"
+                route-type="route"
+                :drawing-route="null"
+                :read-only="true"
+              />
+            </v-col>
+            <v-col cols="12" lg="4">
+              <v-card variant="tonal" rounded="xl">
+                <v-card-text>
+                  <div class="d-flex flex-wrap ga-2">
+                    <v-chip v-if="viewingPlay?.category" size="small" variant="tonal" :color="categoryColor(viewingPlay.category)">
+                      {{ viewingPlay.category }}
+                    </v-chip>
+                    <v-chip v-if="viewingPlay?.play_type" size="small" variant="tonal" :color="playTypeColor(viewingPlay.play_type)">
+                      {{ playTypeLabel(viewingPlay.play_type) }}
+                    </v-chip>
+                    <v-chip v-if="viewingPlay?.formation" size="small" variant="tonal">
+                      {{ viewingPlay.formation }}
+                    </v-chip>
+                  </div>
+
+                  <div v-if="(viewingPlay?.tags ?? []).length" class="d-flex flex-wrap ga-2 mt-3">
+                    <v-chip
+                      v-for="(t, idx) in (viewingPlay?.tags ?? []).slice(0, 10)"
+                      :key="`view-tag-${idx}`"
+                      size="x-small"
+                      variant="tonal"
+                    >
+                      {{ t }}
+                    </v-chip>
+                  </div>
+
+                  <div class="text-body-2 text-medium-emphasis mt-3" v-if="viewingPlay?.description">
+                    {{ viewingPlay.description }}
+                  </div>
+                  <div class="text-body-2 text-medium-emphasis mt-3 font-italic" v-else>
+                    Sem descrição
+                  </div>
+                </v-card-text>
+              </v-card>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-if="!readOnly" v-model="metaOpen" max-width="640">
+      <v-card rounded="xl">
+        <v-card-title class="text-h6 font-weight-bold">Salvar jogada</v-card-title>
+        <v-divider />
+        <v-card-text>
+          <v-row density="comfortable">
+            <v-col cols="12" md="6">
+              <v-text-field v-model="meta.name" label="Nome da jogada" variant="outlined" :disabled="saving" required />
             </v-col>
             <v-col cols="12" md="6">
               <v-select
-                v-model="form.category"
-                :items="categories"
-                label="Categoria"
+                v-model="meta.category"
+                :items="categoryItems"
+                label="Lado (Ataque/Defesa)"
                 variant="outlined"
                 clearable
                 :disabled="saving"
               />
             </v-col>
-            <v-col cols="12">
-              <v-textarea
-                v-model="form.description"
-                label="Explicação"
+            <v-col cols="12" md="6">
+              <v-combobox
+                v-model="meta.play_type"
+                :items="playTypeItems"
+                label="Tipo (pode cadastrar na hora)"
                 variant="outlined"
-                rows="5"
-                auto-grow
                 :disabled="saving"
+                clearable
               />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-combobox
+                v-model="meta.formation"
+                :items="formationItems"
+                label="Formação (pode cadastrar na hora)"
+                variant="outlined"
+                :disabled="saving"
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="meta.tagsText"
+                label="Tags (vírgula)"
+                variant="outlined"
+                :disabled="saving"
+                placeholder="red zone, 3rd down"
+              />
+            </v-col>
+            <v-col cols="12">
+              <v-textarea v-model="meta.description" label="Descrição" variant="outlined" :disabled="saving" rows="4" auto-grow />
             </v-col>
           </v-row>
         </v-card-text>
-
         <v-divider />
-
         <v-card-actions class="pa-4">
-          <v-btn class="flex-grow-1" variant="tonal" rounded="xl" :disabled="saving" @click="closeForm">
-            Cancelar
-          </v-btn>
-          <v-btn
-            class="flex-grow-1"
-            color="primary"
-            variant="flat"
-            rounded="xl"
-            :loading="saving"
-            :disabled="!form.title"
-            @click="submit"
-          >
-            <v-icon start>mdi-check</v-icon>
-            {{ editingPlay ? 'Salvar' : 'Adicionar' }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="imageViewerOpen" max-width="1200">
-      <v-card rounded="xl">
-        <v-card-title class="d-flex align-center justify-space-between">
-          <div class="text-subtitle-1 font-weight-bold">Imagem</div>
-          <div class="d-flex align-center ga-2">
-            <v-btn
-              v-if="imageViewerSrc"
-              icon
-              variant="text"
-              aria-label="Girar imagem"
-              @click="rotateImage"
-            >
-              <v-icon>mdi-rotate-right</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" aria-label="Fechar" @click="imageViewerOpen = false">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </div>
-        </v-card-title>
-        <v-divider />
-        <v-card-text class="pa-0">
-          <div
-            v-if="imageViewerSrc"
-            class="image-viewer"
-            :class="{ 'image-viewer--rotated': imageIsRotated }"
-            :style="{ '--image-rotate': `${imageRotation}deg` }"
-          >
-            <img class="image-viewer__img" :src="imageViewerSrc" alt="Imagem" />
-          </div>
-          <div v-else class="pa-6 text-body-2 text-medium-emphasis">Sem imagem</div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-if="!readOnly" v-model="confirmClearImageOpen" max-width="520">
-      <v-card rounded="xl">
-        <v-card-title class="text-subtitle-1 font-weight-bold">Remover imagem?</v-card-title>
-        <v-card-text class="text-body-2 text-medium-emphasis">
-          Esta ação remove a imagem desta jogada. Você pode adicionar outra imagem depois.
-        </v-card-text>
-        <v-card-actions class="pa-4">
-          <v-btn
-            class="flex-grow-1"
-            variant="tonal"
-            rounded="xl"
-            :disabled="saving"
-            @click="confirmClearImageOpen = false"
-          >
-            Cancelar
-          </v-btn>
-          <v-btn
-            class="flex-grow-1"
-            color="error"
-            variant="flat"
-            rounded="xl"
-            :disabled="saving"
-            @click="confirmClearImage"
-          >
-            <v-icon start>mdi-trash-can-outline</v-icon>
-            Remover
-          </v-btn>
+          <v-btn class="flex-grow-1" variant="tonal" rounded="xl" :disabled="saving" @click="metaOpen = false">Cancelar</v-btn>
+          <v-btn class="flex-grow-1" color="primary" variant="flat" rounded="xl" :loading="saving" :disabled="!meta.name.trim()" @click="submit">Salvar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -306,7 +382,7 @@
         <v-card-title class="text-subtitle-1 font-weight-bold">Remover jogada?</v-card-title>
         <v-card-text class="text-body-2 text-medium-emphasis">
           Tem certeza que deseja remover a jogada
-          <span class="font-weight-medium">"{{ playToRemove?.title }}"</span>?
+          <span class="font-weight-medium">"{{ playToRemove?.name }}"</span>?
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-btn
@@ -340,6 +416,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { http } from '../../api/http'
 import { useProgressCircular } from '../../composables/useProgressCircular'
+import FieldCanvas from '../../components/playbook/FieldCanvas.vue'
+import PlayToolbar from '../../components/playbook/PlayToolbar.vue'
 
 const props = withDefaults(defineProps<{ readOnly?: boolean }>(), {
   readOnly: false,
@@ -349,10 +427,15 @@ const readOnly = computed(() => props.readOnly)
 
 type Play = {
   id: number
-  title: string
+  name: string
   description: string | null
-  category: string | null
-  image_url: string | null
+  formation: string
+  play_type: string
+  tags: string[]
+  players: Array<{ id: string; x: number; y: number; role?: string; team?: string; label?: string }>
+  routes: Array<{ player_id: string; points: Array<{ x: number; y: number }>; type?: string; color?: string }>
+  category?: string | null
+  image_url?: string | null
 }
 
 const plays = ref<Play[]>([])
@@ -360,65 +443,132 @@ const loading = ref(false)
 const { progressValue } = useProgressCircular(loading)
 const error = ref<string | null>(null)
 
-const formOpen = ref(false)
+const designerOpen = ref(false)
 const editingPlay = ref<Play | null>(null)
 const saving = ref(false)
 const formError = ref<string | null>(null)
+
+const viewerOpen = ref(false)
+const viewingPlay = ref<Play | null>(null)
+const viewerPlayers = ref<Player[]>([])
+const viewerRoutes = ref<Route[]>([])
 
 const confirmRemovePlayOpen = ref(false)
 const playToRemove = ref<Play | null>(null)
 const removingPlay = ref(false)
 
-const categories = ['Ataque', 'Defesa']
+const cloningPlayId = ref<number | null>(null)
 
-const form = ref({
-  title: '',
+type Player = { id: string; x: number; y: number; role?: string; team?: string; label?: string }
+type Route = { player_id: string; points: Array<{ x: number; y: number }>; type?: string; color?: string }
+
+const DEFAULT_PLAYERS: Player[] = [
+  { id: 'qb', x: 250, y: 400, role: 'QB', team: 'offense', label: 'QB' },
+  { id: 'c', x: 250, y: 440, role: 'C', team: 'offense', label: 'C' },
+  { id: 'wr1', x: 80, y: 400, role: 'WR', team: 'offense', label: 'W1' },
+  { id: 'wr2', x: 420, y: 400, role: 'WR', team: 'offense', label: 'W2' },
+  { id: 'rb', x: 250, y: 470, role: 'RB', team: 'offense', label: 'RB' },
+  { id: 'db1', x: 80, y: 350, role: 'DB', team: 'defense', label: 'D1' },
+  { id: 'db2', x: 420, y: 350, role: 'DB', team: 'defense', label: 'D2' },
+  { id: 'lb', x: 250, y: 360, role: 'LB', team: 'defense', label: 'LB' },
+  { id: 's1', x: 160, y: 300, role: 'S', team: 'defense', label: 'S1' },
+  { id: 's2', x: 340, y: 300, role: 'S', team: 'defense', label: 'S2' },
+]
+
+const players = ref<Player[]>([])
+const routes = ref<Route[]>([])
+const selectedPlayerId = ref<string | null>(null)
+const mode = ref<'move' | 'route' | 'erase'>('move')
+const routeColor = ref<string>('warning')
+const routeType = ref<string>('route')
+const drawingRoute = ref<Route | null>(null)
+
+const metaOpen = ref(false)
+const meta = ref({
+  name: '',
   description: '',
-  category: '' as string | null | '',
+  category: '' as string | '',
+  formation: 'shotgun',
+  play_type: 'pass',
+  tagsText: '',
 })
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const imageFile = ref<File | null>(null)
-const dragOver = ref(false)
-const clearImageFlag = ref(false)
-const confirmClearImageOpen = ref(false)
+const categoryItems = ['Ataque', 'Defesa']
 
-const imageViewerOpen = ref(false)
-const imageViewerSrc = ref<string | null>(null)
-const imageRotation = ref(0)
-
-const imageIsRotated = computed(() => imageRotation.value % 180 !== 0)
-
-const previewUrl = computed(() => {
-  if (imageFile.value) return URL.createObjectURL(imageFile.value)
-  return editingPlay.value?.image_url ?? null
+const formationItems = computed(() => {
+  const base = ['shotgun', 'pistol', 'i_formation', 'trips_right', 'trips_left', 'spread']
+  const fromPlays = plays.value.map((p) => String(p.formation || '').trim()).filter(Boolean)
+  return Array.from(new Set([...base, ...fromPlays]))
 })
+
+const playTypeItems = computed(() => {
+  const base = ['pass', 'run', 'trick']
+  const fromPlays = plays.value.map((p) => String(p.play_type || '').trim()).filter(Boolean)
+  return Array.from(new Set([...base, ...fromPlays]))
+})
+
+function playTypeLabel(t: string): string {
+  const v = String(t || '').trim().toLowerCase()
+  if (v === 'pass') return 'Passe'
+  if (v === 'run') return 'Corrida'
+  if (v === 'trick') return 'Trick'
+  return String(t || '').trim() || 'Passe'
+}
+
+function playTypeColor(t: string): string {
+  const v = String(t || '').trim().toLowerCase()
+  if (v === 'run') return 'success'
+  if (v === 'trick') return 'secondary'
+  return 'info'
+}
 
 function categoryColor(category: string): string {
-  switch (category) {
-    case 'Ataque':
-      return 'error'
-    case 'Defesa':
-      return 'info'
-    case 'Bola Parada':
-      return 'warning'
-    case 'Transição':
-      return 'success'
-    case 'Posse':
-      return 'secondary'
-    default:
-      return 'primary'
-  }
+  if (category === 'Ataque') return 'error'
+  if (category === 'Defesa') return 'info'
+  return 'primary'
 }
 
-function openImageViewer(src: string) {
-  imageViewerSrc.value = src
-  imageRotation.value = 0
-  imageViewerOpen.value = true
+function routeStroke(r: any): string {
+  const c = String(r?.color ?? 'warning')
+  if (c.startsWith('#') || c.startsWith('rgb')) return c
+  if (c === 'white') return 'rgb(255,255,255)'
+  return `rgb(var(--v-theme-${c}))`
 }
 
-function rotateImage() {
-  imageRotation.value = (imageRotation.value + 90) % 360
+function routePointsAttr(r: any): string {
+  const pts = Array.isArray(r?.points) ? r.points : []
+  return pts.map((p: any) => `${Number(p.x) || 0},${Number(p.y) || 0}`).join(' ')
+}
+
+function routeArrowPointsAttr(r: any): string {
+  const pts = Array.isArray(r?.points) ? r.points : []
+  if (pts.length < 2) return ''
+  const last = pts[pts.length - 1]
+  const prev = pts[pts.length - 2]
+  if (!last || !prev) return ''
+
+  const x2 = Number(last.x) || 0
+  const y2 = Number(last.y) || 0
+  const x1 = Number(prev.x) || 0
+  const y1 = Number(prev.y) || 0
+
+  const angle = Math.atan2(y2 - y1, x2 - x1)
+  const len = 16
+  const spread = 0.55
+  const ax1 = x2 - len * Math.cos(angle - spread)
+  const ay1 = y2 - len * Math.sin(angle - spread)
+  const ax2 = x2 - len * Math.cos(angle + spread)
+  const ay2 = y2 - len * Math.sin(angle + spread)
+
+  return `${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}`
+}
+
+function playerLabel(pl: any): string {
+  const label = String(pl?.label ?? '').trim()
+  if (label) return label
+  const role = String(pl?.role ?? '').trim()
+  if (role) return role.slice(0, 2).toUpperCase()
+  return String(pl?.id ?? '?').slice(0, 2).toUpperCase()
 }
 
 async function fetchPlays() {
@@ -426,7 +576,15 @@ async function fetchPlays() {
   error.value = null
   try {
     const { data } = await http.get('/playbook/plays/?ordering=-created_at')
-    plays.value = Array.isArray(data) ? data : []
+    const items = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : []
+    plays.value = items.map((p: any) => ({
+      ...p,
+      tags: Array.isArray(p?.tags) ? p.tags : [],
+      players: Array.isArray(p?.players) ? p.players : [],
+      routes: Array.isArray(p?.routes) ? p.routes : [],
+      formation: typeof p?.formation === 'string' ? p.formation : 'shotgun',
+      play_type: typeof p?.play_type === 'string' ? p.play_type : 'pass',
+    }))
   } catch (e: any) {
     const status = e?.response?.status
     error.value = status ? `Falha ao carregar Playbook (HTTP ${status}).` : 'Falha ao carregar Playbook.'
@@ -438,115 +596,123 @@ async function fetchPlays() {
 function openCreate() {
   if (readOnly.value) return
   editingPlay.value = null
-  form.value = { title: '', description: '', category: '' }
-  imageFile.value = null
-  clearImageFlag.value = false
+  players.value = DEFAULT_PLAYERS.map((p) => ({ ...p }))
+  routes.value = []
+  selectedPlayerId.value = null
+  mode.value = 'move'
+  routeColor.value = 'warning'
+  routeType.value = 'route'
+  drawingRoute.value = null
+  meta.value = { name: '', description: '', category: '', formation: 'shotgun', play_type: 'pass', tagsText: '' }
   formError.value = null
-  formOpen.value = true
+  designerOpen.value = true
 }
 
 function openEdit(p: Play) {
   if (readOnly.value) return
   editingPlay.value = p
-  form.value = {
-    title: p.title ?? '',
+  players.value = Array.isArray(p.players) && p.players.length ? p.players.map((x) => ({ ...x })) : DEFAULT_PLAYERS.map((x) => ({ ...x }))
+  routes.value = Array.isArray(p.routes) ? p.routes.map((x) => ({ ...x })) : []
+  selectedPlayerId.value = null
+  mode.value = 'move'
+  routeColor.value = 'warning'
+  routeType.value = 'route'
+  drawingRoute.value = null
+  meta.value = {
+    name: p.name ?? '',
     description: p.description ?? '',
-    category: p.category ?? '',
+    category: (p.category ?? '') as any,
+    formation: typeof p.formation === 'string' ? p.formation : 'shotgun',
+    play_type: typeof p.play_type === 'string' ? p.play_type : 'pass',
+    tagsText: Array.isArray(p.tags) ? p.tags.join(', ') : '',
   }
-  imageFile.value = null
-  clearImageFlag.value = false
   formError.value = null
-  formOpen.value = true
+  designerOpen.value = true
 }
 
-function closeForm() {
-  formOpen.value = false
+function closeDesigner() {
+  designerOpen.value = false
   editingPlay.value = null
-  imageFile.value = null
-  clearImageFlag.value = false
-  confirmClearImageOpen.value = false
-  dragOver.value = false
+  metaOpen.value = false
+  drawingRoute.value = null
 }
 
-function openFilePicker() {
-  if (saving.value) return
-  fileInput.value?.click()
-}
-
-function onDragOver() {
-  if (saving.value) return
-  dragOver.value = true
-}
-
-function onDrop(e: DragEvent) {
-  dragOver.value = false
-  if (saving.value) return
-  const file = e.dataTransfer?.files?.[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) return
-  imageFile.value = file
-  clearImageFlag.value = false
-}
-
-function onFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) return
-  imageFile.value = file
-  clearImageFlag.value = false
-  input.value = ''
-}
-
-function requestClearImage() {
+function openMetaDialog() {
   if (readOnly.value) return
-  if (saving.value) return
-
-  // Se existe imagem já salva, confirmar antes de marcar para remoção.
-  if (editingPlay.value?.image_url) {
-    confirmClearImageOpen.value = true
-    return
-  }
-
-  // Caso contrário, é só limpar a seleção local (ex: criando jogada).
-  imageFile.value = null
-  clearImageFlag.value = false
+  metaOpen.value = true
 }
 
-function confirmClearImage() {
-  imageFile.value = null
-  clearImageFlag.value = true
-  confirmClearImageOpen.value = false
+function openView(p: Play) {
+  viewingPlay.value = p
+  viewerPlayers.value = Array.isArray(p.players) ? p.players.map((x) => ({ ...x })) : []
+  viewerRoutes.value = Array.isArray(p.routes) ? p.routes.map((x) => ({ ...x })) : []
+  viewerOpen.value = true
+}
+
+function closeView() {
+  viewerOpen.value = false
+  viewingPlay.value = null
+  viewerPlayers.value = []
+  viewerRoutes.value = []
+}
+
+function onPlayerMove(id: string, x: number, y: number) {
+  players.value = players.value.map((p) => (p.id === id ? { ...p, x, y } : p))
+}
+
+function onRouteAdd(r: Route) {
+  routes.value = [...routes.value, r]
+  drawingRoute.value = null
+}
+
+function onRouteErase(index: number) {
+  routes.value = routes.value.filter((_, i) => i !== index)
+}
+
+function cancelRoute() {
+  drawingRoute.value = null
+}
+
+function finishRoute() {
+  if (!drawingRoute.value) return
+  if ((drawingRoute.value.points ?? []).length < 2) return
+  routes.value = [...routes.value, drawingRoute.value]
+  drawingRoute.value = null
 }
 
 async function submit() {
   if (readOnly.value) return
-  if (!form.value.title?.trim()) return
+  if (!meta.value.name?.trim()) return
 
   saving.value = true
   formError.value = null
 
   try {
-    const fd = new FormData()
-    fd.append('title', form.value.title.trim())
-    fd.append('description', form.value.description?.trim() ? form.value.description.trim() : '')
-    if (form.value.category) fd.append('category', String(form.value.category))
+    const tags = meta.value.tagsText
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
 
-    if (imageFile.value) {
-      fd.append('image', imageFile.value)
-    }
-    if (clearImageFlag.value) {
-      fd.append('clear_image', 'true')
+    const payload = {
+      name: meta.value.name.trim(),
+      description: meta.value.description?.trim() ? meta.value.description.trim() : '',
+      category: meta.value.category ? String(meta.value.category) : null,
+      formation: String((meta.value as any).formation ?? '').trim() || 'shotgun',
+      play_type: String((meta.value as any).play_type ?? '').trim() || 'pass',
+      tags,
+      players: players.value,
+      routes: routes.value,
     }
 
     if (editingPlay.value?.id) {
-      await http.patch(`/playbook/plays/${editingPlay.value.id}/`, fd)
+      await http.patch(`/playbook/plays/${editingPlay.value.id}/`, payload)
     } else {
-      await http.post('/playbook/plays/', fd)
+      await http.post('/playbook/plays/', payload)
     }
 
     await fetchPlays()
-    closeForm()
+    metaOpen.value = false
+    closeDesigner()
   } catch (e: any) {
     const status = e?.response?.status
     formError.value = status ? `Falha ao salvar (HTTP ${status}).` : 'Falha ao salvar.'
@@ -588,30 +754,24 @@ async function confirmRemovePlay() {
   }
 }
 
+async function clonePlay(p: Play) {
+  if (readOnly.value) return
+  if (cloningPlayId.value) return
+
+  cloningPlayId.value = p.id
+  try {
+    await http.post(`/playbook/plays/${p.id}/clone/`, {})
+    await fetchPlays()
+  } catch (e: any) {
+    const status = e?.response?.status
+    error.value = status ? `Falha ao duplicar jogada (HTTP ${status}).` : 'Falha ao duplicar jogada.'
+  } finally {
+    cloningPlayId.value = null
+  }
+}
+
 onMounted(fetchPlays)
 </script>
-
-<style scoped>
-.image-viewer {
-  width: 100%;
-  height: 80vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.image-viewer--rotated {
-  height: min(80vh, 100vw);
-}
-
-.image-viewer__img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transform: rotate(var(--image-rotate, 0deg));
-  transform-origin: center;
-}
-</style>
 
 <style scoped>
 .page-header {
@@ -643,18 +803,33 @@ onMounted(fetchPlays)
   border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
 }
 
-.play-image {
+.play-preview {
   position: relative;
   overflow: hidden;
+  height: 208px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
-.play-image__placeholder {
-  height: 208px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+.play-preview__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.play-preview__field {
+  fill: rgba(var(--v-theme-success), 0.22);
+}
+
+.play-preview__lines line {
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 4;
+}
+
+.play-preview__label {
+  fill: rgba(255, 255, 255, 0.95);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .play-actions {
@@ -679,59 +854,8 @@ onMounted(fetchPlays)
   left: 12px;
 }
 
-.form-card {
+.designer-card {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
-}
-
-.dropzone {
-  border-radius: 16px;
-  border: 2px dashed rgba(var(--v-theme-on-surface), 0.25);
-  background: rgba(var(--v-theme-surface), 0.40);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.dropzone--over {
-  border-color: rgba(var(--v-theme-primary), 0.9);
-  background: rgba(var(--v-theme-primary), 0.08);
-}
-
-.dropzone__empty {
-  height: 240px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 18px;
-}
-
-.dropzone__preview {
-  position: relative;
-  height: 240px;
-}
-
-.dropzone__preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.dropzone__overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.45);
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.dropzone__preview:hover .dropzone__overlay {
-  opacity: 1;
 }
 
 .line-clamp-3 {

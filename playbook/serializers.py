@@ -7,12 +7,21 @@ class PlaySerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
     clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
 
+    tags = serializers.ListField(child=serializers.CharField(), required=False)
+    players = serializers.ListField(child=serializers.DictField(), required=False)
+    routes = serializers.ListField(child=serializers.DictField(), required=False)
+
     class Meta:
         model = Play
         fields = (
             "id",
-            "title",
+            "name",
             "description",
+            "formation",
+            "play_type",
+            "players",
+            "routes",
+            "tags",
             "category",
             "image",
             "image_url",
@@ -24,6 +33,9 @@ class PlaySerializer(serializers.ModelSerializer):
             "image": {"required": False, "allow_null": True},
             "category": {"required": False, "allow_null": True},
             "description": {"required": False, "allow_null": True},
+            "players": {"required": False},
+            "routes": {"required": False},
+            "tags": {"required": False},
         }
 
     def get_image_url(self, obj: Play):
@@ -45,3 +57,14 @@ class PlaySerializer(serializers.ModelSerializer):
         # Non-model write-only helper.
         validated_data.pop("clear_image", None)
         return super().create(validated_data)
+
+    def validate_tags(self, value):
+        if value is None:
+            return []
+        return [str(x).strip() for x in value if str(x).strip()]
+
+    def validate_players(self, value):
+        return value or []
+
+    def validate_routes(self, value):
+        return value or []
