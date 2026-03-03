@@ -8,6 +8,7 @@ class DrillCatalogSerializer(serializers.ModelSerializer):
 
 class AttendanceSerializer(serializers.ModelSerializer):
     athlete_name = serializers.CharField(source="athlete.name", read_only=True)
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = Attendance

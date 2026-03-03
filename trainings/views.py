@@ -361,6 +361,7 @@ class TrainingSessionViewSet(ModelViewSet):
             "jersey_number": a.athlete.jersey_number,
             "position": a.athlete.current_position,
             "status": a.status,
+            "status_label": a.get_status_display(),
             "checkin_time": a.checkin_time,
         } for a in attendances]
 
@@ -977,7 +978,7 @@ def _export_pdf_impl(self, request, pk=None):
             a.athlete.name,
             a.athlete.jersey_number or "",
             a.athlete.current_position or "",
-            a.status,
+            a.get_status_display(),
             a.checkin_time or "",
         ])
     t_att = Table(attendance_data, repeatRows=1)
@@ -1033,7 +1034,7 @@ def _export_pdf_impl(self, request, pk=None):
                 athlete.name,
                 athlete.jersey_number or "",
                 athlete.current_position or "",
-                a.status,
+                a.get_status_display(),
                 r.get("weighted_average", "") if r.get("weighted_average") is not None else "",
                 r.get("rank", ""),
             ]
@@ -1339,7 +1340,7 @@ def _export_csv_impl(self, request, pk=None):
                 athlete.name,
                 athlete.jersey_number or "",
                 athlete.current_position or "",
-                a.status,
+                a.get_status_display(),
                 r.get("weighted_average", ""),
                 r.get("rank", ""),
             ]

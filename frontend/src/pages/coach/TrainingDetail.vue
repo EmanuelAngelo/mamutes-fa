@@ -306,7 +306,7 @@
             <tbody>
               <tr v-for="a in dashboard.attendance" :key="a.athlete_id">
                 <td>{{ a.athlete_name }}</td>
-                <td>{{ a.status }}</td>
+                <td>{{ a.status_label ?? a.status }}</td>
               </tr>
             </tbody>
             </v-table>
