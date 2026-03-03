@@ -384,7 +384,7 @@ const newDrill = ref({
 
 const scoreAthleteItems = computed(() => {
   const att = dashboard.value?.attendance ?? []
-  const presentStatus = new Set(['PRESENT'])
+  const presentStatus = new Set(['PRESENT', 'LATE'])
   return att
     .filter((a: any) => presentStatus.has(String(a?.status ?? 'PRESENT')))
     .map((a: any) => ({
