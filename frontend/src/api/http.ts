@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosHeaders } from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 // URL principal (produção)
@@ -44,6 +44,12 @@ export const http = axios.create({
   timeout: 20000,
 })
 
+function withAuthHeader(config: any, token: string) {
+  const headers = AxiosHeaders.from(config.headers)
+  headers.set('Authorization', `Bearer ${token}`)
+  config.headers = headers
+}
+
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof config.url === 'string') {
     if (config.url.startsWith('/api/')) config.url = config.url.slice(4)
@@ -51,8 +57,7 @@ http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   const token = getAccessToken()
   if (token) {
-    config.headers = config.headers ?? {}
-    config.headers.Authorization = `Bearer ${token}`
+    withAuthHeader(config, token)
   }
   return config
 })
@@ -92,8 +97,7 @@ http.interceptors.response.use(
       return new Promise((resolve, reject) => {
         refreshQueue.push((token) => {
           if (!token) return reject(error)
-          originalConfig.headers = originalConfig.headers ?? {}
-          originalConfig.headers.Authorization = `Bearer ${token}`
+          withAuthHeader(originalConfig, token)
           resolve(http(originalConfig))
         })
       })
@@ -109,8 +113,7 @@ http.interceptors.response.use(
       setAccessToken(newAccess)
       resolveQueue(newAccess)
 
-      originalConfig.headers = originalConfig.headers ?? {}
-      originalConfig.headers.Authorization = `Bearer ${newAccess}`
+      withAuthHeader(originalConfig, newAccess)
       return http(originalConfig)
     } catch (e) {
       resolveQueue(null)
