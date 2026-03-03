@@ -12,10 +12,17 @@
           </div>
         </div>
 
-        <v-btn v-if="!readOnly" color="primary" variant="flat" rounded="xl" @click="openCreate">
-          <v-icon start>mdi-plus</v-icon>
-          Nova Jogada
-        </v-btn>
+        <div class="d-flex align-center ga-2">
+          <v-btn variant="tonal" rounded="xl" :loading="downloadingAllPdf" @click="downloadPdfAll">
+            <v-icon start>mdi-file-pdf-box</v-icon>
+            Imprimir PDF
+          </v-btn>
+
+          <v-btn v-if="!readOnly" color="primary" variant="flat" rounded="xl" @click="openCreate">
+            <v-icon start>mdi-plus</v-icon>
+            Nova Jogada
+          </v-btn>
+        </div>
       </div>
     </v-sheet>
 
@@ -122,34 +129,48 @@
                 </svg>
 
                 <div class="play-actions" :class="{ 'play-actions--show': isHovering }">
-                  <v-btn size="small" variant="tonal" @click.stop="openView(p)">
-                    <v-icon start>mdi-eye</v-icon>
-                    Ver
-                  </v-btn>
-                  <v-btn v-if="!readOnly" size="small" variant="tonal" @click.stop="openEdit(p)">
-                    <v-icon start>mdi-pencil</v-icon>
-                    Editar
-                  </v-btn>
-                  <v-btn
-                    v-if="!readOnly"
-                    size="small"
-                    variant="tonal"
-                    :loading="cloningPlayId === p.id"
-                    :disabled="cloningPlayId === p.id"
-                    @click.stop="clonePlay(p)"
-                  >
-                    <v-icon start>mdi-content-copy</v-icon>
-                    Duplicar
-                  </v-btn>
-                  <v-btn
-                    v-if="!readOnly"
-                    size="small"
-                    color="error"
-                    variant="tonal"
-                    @click.stop="requestRemovePlay(p)"
-                  >
-                    <v-icon>mdi-trash-can-outline</v-icon>
-                  </v-btn>
+                  <div class="play-actions__panel">
+                    <div class="d-flex justify-end ga-2">
+                      <v-btn size="small" color="primary" variant="flat" rounded="lg" @click.stop="openView(p)">
+                        <v-icon start>mdi-eye</v-icon>
+                        Ver
+                      </v-btn>
+
+                      <v-btn
+                        size="small"
+                        variant="tonal"
+                        icon
+                        aria-label="Baixar PDF"
+                        :loading="downloadingPdfId === p.id"
+                        :disabled="downloadingPdfId === p.id"
+                        @click.stop="downloadPdfOne(p)"
+                      >
+                        <v-icon>mdi-file-pdf-box</v-icon>
+                      </v-btn>
+                    </div>
+
+                    <div v-if="!readOnly" class="d-flex justify-end ga-2 mt-2">
+                      <v-btn size="small" variant="tonal" icon aria-label="Editar" @click.stop="openEdit(p)">
+                        <v-icon>mdi-pencil</v-icon>
+                      </v-btn>
+
+                      <v-btn
+                        size="small"
+                        variant="tonal"
+                        icon
+                        aria-label="Duplicar"
+                        :loading="cloningPlayId === p.id"
+                        :disabled="cloningPlayId === p.id"
+                        @click.stop="requestClonePlay(p)"
+                      >
+                        <v-icon>mdi-content-copy</v-icon>
+                      </v-btn>
+
+                      <v-btn size="small" color="error" variant="tonal" icon aria-label="Remover" @click.stop="requestRemovePlay(p)">
+                        <v-icon>mdi-trash-can-outline</v-icon>
+                      </v-btn>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -409,6 +430,39 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-if="!readOnly" v-model="confirmCloneOpen" max-width="520">
+      <v-card rounded="xl">
+        <v-card-title class="text-subtitle-1 font-weight-bold">Duplicar jogada?</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Quer criar uma cópia da jogada
+          <span class="font-weight-medium">"{{ playToClone?.name }}"</span>?
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-btn
+            class="flex-grow-1"
+            variant="tonal"
+            rounded="xl"
+            :disabled="Boolean(cloningPlayId)"
+            @click="confirmCloneOpen = false"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            class="flex-grow-1"
+            color="primary"
+            variant="flat"
+            rounded="xl"
+            :loading="Boolean(cloningPlayId)"
+            :disabled="!playToClone"
+            @click="confirmClone"
+          >
+            <v-icon start>mdi-content-copy</v-icon>
+            Duplicar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -458,6 +512,11 @@ const playToRemove = ref<Play | null>(null)
 const removingPlay = ref(false)
 
 const cloningPlayId = ref<number | null>(null)
+const confirmCloneOpen = ref(false)
+const playToClone = ref<Play | null>(null)
+
+const downloadingAllPdf = ref(false)
+const downloadingPdfId = ref<number | null>(null)
 
 type Player = { id: string; x: number; y: number; role?: string; team?: string; label?: string }
 type Route = { player_id: string; points: Array<{ x: number; y: number }>; type?: string; color?: string }
@@ -770,6 +829,65 @@ async function clonePlay(p: Play) {
   }
 }
 
+function requestClonePlay(p: Play) {
+  if (readOnly.value) return
+  if (cloningPlayId.value) return
+  playToClone.value = p
+  confirmCloneOpen.value = true
+}
+
+async function confirmClone() {
+  const p = playToClone.value
+  if (!p) return
+  await clonePlay(p)
+  confirmCloneOpen.value = false
+  playToClone.value = null
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function safeFilename(name: string): string {
+  const base = (name || '').trim() || 'playbook'
+  return base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80)
+}
+
+async function downloadPdfAll() {
+  if (downloadingAllPdf.value) return
+  downloadingAllPdf.value = true
+  try {
+    const res = await http.get('/playbook/plays/export/pdf/', { responseType: 'blob' })
+    downloadBlob(res.data as Blob, 'playbook.pdf')
+  } catch (e: any) {
+    const status = e?.response?.status
+    error.value = status ? `Falha ao gerar PDF (HTTP ${status}).` : 'Falha ao gerar PDF.'
+  } finally {
+    downloadingAllPdf.value = false
+  }
+}
+
+async function downloadPdfOne(p: Play) {
+  if (downloadingPdfId.value) return
+  downloadingPdfId.value = p.id
+  try {
+    const res = await http.get(`/playbook/plays/${p.id}/export/pdf/`, { responseType: 'blob' })
+    downloadBlob(res.data as Blob, `${safeFilename(p.name)}.pdf`)
+  } catch (e: any) {
+    const status = e?.response?.status
+    error.value = status ? `Falha ao gerar PDF (HTTP ${status}).` : 'Falha ao gerar PDF.'
+  } finally {
+    downloadingPdfId.value = null
+  }
+}
+
 onMounted(fetchPlays)
 </script>
 
@@ -836,12 +954,20 @@ onMounted(fetchPlays)
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 12px;
   opacity: 0;
   transition: opacity 160ms ease;
   background: rgba(0, 0, 0, 0.45);
+}
+
+.play-actions__panel {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
 }
 
 .play-actions--show {

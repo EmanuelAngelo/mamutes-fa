@@ -28,6 +28,20 @@ class PlaybookPermissionsTests(APITestCase):
         resp = self.client.get(self.list_url)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
+    def test_player_can_export_pdf_all(self):
+        self.client.force_authenticate(user=self.player_user)
+        url = reverse("playbook-plays-export-pdf")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+
+    def test_player_can_export_pdf_single(self):
+        self.client.force_authenticate(user=self.player_user)
+        url = reverse("playbook-plays-export-play-pdf", args=[self.play.id])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+
     def test_player_cannot_create(self):
         self.client.force_authenticate(user=self.player_user)
         resp = self.client.post(self.list_url, {"name": "New", "description": "x"}, format="json")
