@@ -650,6 +650,48 @@ class TrainingSessionViewSet(ModelViewSet):
             "individual": individual,
         })
 
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="attendance_trends")
+    def attendance_trends(self, request):
+        """Assiduidade por treino (contagem por status) para o Coach Dashboard."""
+        try:
+            limit = int(request.query_params.get("limit", "8"))
+        except ValueError:
+            limit = 8
+        limit = max(2, min(limit, 30))
+
+        latest_qs = TrainingSession.objects.all().order_by("-date", "-id")
+        trainings = list(latest_qs[:limit])
+        trainings.reverse()  # chronological
+
+        # Pre-carrega contagens por status para evitar N+1 grande (limit é pequeno de qualquer forma)
+        counts_qs = (
+            Attendance.objects
+            .filter(training_id__in=[t.id for t in trainings])
+            .values("training_id", "status")
+            .annotate(count=Count("id"))
+        )
+        bucket = defaultdict(lambda: defaultdict(int))
+        for row in counts_qs:
+            bucket[int(row["training_id"])][row["status"]] = int(row["count"] or 0)
+
+        items = []
+        for t in trainings:
+            by_status = bucket.get(t.id, {})
+            items.append({
+                "training_id": t.id,
+                "label": str(t.date),
+                "date": t.date,
+                "present": int(by_status.get("PRESENT", 0)),
+                "late": int(by_status.get("LATE", 0)),
+                "justified": int(by_status.get("JUSTIFIED", 0)),
+                "absent": int(by_status.get("ABSENT", 0)),
+            })
+
+        return Response({
+            "trainings": [{"id": t.id, "date": t.date} for t in trainings],
+            "items": items,
+        })
+
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")
     def export_pdf(self, request, pk=None):
         return _export_pdf_impl(self, request, pk)

@@ -103,12 +103,31 @@
           </v-card-text>
         </v-card>
       </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Assiduidade (últimos treinos)</v-card-title>
+          <v-card-text>
+            <div v-if="attendanceLabels.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem dados de presença.
+            </div>
+            <BarChart
+              v-else
+              :labels="attendanceLabels"
+              :series="attendanceSeries"
+              :stacked="true"
+              :y-min="0"
+              :y-max="attendanceYMax"
+            />
+          </v-card-text>
+        </v-card>
+      </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import PieChart from '../../components/charts/PieChart.vue'
@@ -136,14 +155,45 @@ const comparison = ref<any | null>(null)
 const hardestDrill = ref<any | null>(null)
 const mostConsistentAthlete = ref<any | null>(null)
 
+type AttendanceItem = {
+  training_id: number
+  label: string
+  present: number
+  late: number
+  justified: number
+  absent: number
+}
+
+const attendanceItems = ref<AttendanceItem[]>([])
+const attendanceLabels = computed(() => attendanceItems.value.map((x) => formatDateBR(x.label)))
+const attendanceYMax = computed(() => {
+  const totals = attendanceItems.value.map((x) => x.present + x.late + x.justified + x.absent)
+  const max = totals.length ? Math.max(...totals) : 0
+  return max > 0 ? max : 10
+})
+const attendanceSeries = computed(() => {
+  const items = attendanceItems.value
+  return [
+    { label: 'Presente', data: items.map((x) => x.present), colorKey: 'success' as const },
+    { label: 'Atraso', data: items.map((x) => x.late), colorKey: 'warning' as const },
+    { label: 'Justificado', data: items.map((x) => x.justified), colorKey: 'info' as const },
+    { label: 'Ausente', data: items.map((x) => x.absent), colorKey: 'error' as const },
+  ]
+})
+
 async function fetchOverview() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await http.get('/trainings/evolution/?limit=8')
+    const [{ data }, { data: attendance }] = await Promise.all([
+      http.get('/trainings/evolution/?limit=8'),
+      http.get('/trainings/attendance_trends/?limit=8'),
+    ])
     const teamTrend = (data?.team_trend ?? []) as Array<{ label: string; value: number; training_id: number }>
     trendItems.value = teamTrend.map(x => ({ label: x.label, value: x.value }))
     comparison.value = data?.comparison ?? null
+
+    attendanceItems.value = Array.isArray(attendance?.items) ? (attendance.items as AttendanceItem[]) : []
 
     const last = teamTrend.length ? teamTrend[teamTrend.length - 1] : undefined
     const lastTraining = comparison.value?.to_training
