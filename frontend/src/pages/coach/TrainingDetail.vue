@@ -384,11 +384,27 @@ const newDrill = ref({
 
 const scoreAthleteItems = computed(() => {
   const att = dashboard.value?.attendance ?? []
-  return att.map((a: any) => ({
+  const presentStatus = new Set(['PRESENT'])
+  return att
+    .filter((a: any) => presentStatus.has(String(a?.status ?? 'PRESENT')))
+    .map((a: any) => ({
     label: `${a.athlete_name}${a.jersey_number ? ` #${a.jersey_number}` : ''}`,
     value: a.athlete_id,
-  }))
+    }))
 })
+
+watch(
+  scoreAthleteItems,
+  (items) => {
+    const current = scoreForm.value.athlete_id
+    if (!current) return
+    if (!items.some((i: any) => i.value === current)) {
+      scoreForm.value.athlete_id = null
+      syncScoreFormFromExisting()
+    }
+  },
+  { immediate: true }
+)
 
 const scoreDrillItems = computed(() => {
   const drills = dashboard.value?.drills ?? []
