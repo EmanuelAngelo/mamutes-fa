@@ -69,6 +69,7 @@
         </v-card-text>
       </v-card>
 
+      <div ref="attendanceAnchor">
       <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Lista de presença
@@ -124,7 +125,9 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
 
+      <div ref="drillsAnchor">
       <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Drills do treino
@@ -203,7 +206,9 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
 
+      <div ref="scoresAnchor">
       <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title class="d-flex flex-wrap align-center justify-space-between">
           Avaliação individual
@@ -285,6 +290,7 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
 
       <v-card variant="tonal" rounded="xl" class="mt-4">
         <v-card-title>Ranking</v-card-title>
@@ -342,7 +348,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '../../api/http'
 import { useProgressCircular } from '../../composables/useProgressCircular'
@@ -368,6 +374,18 @@ const loadingAttendance = ref(false)
 const savingAttendance = ref(false)
 const attendanceError = ref<string | null>(null)
 const attendanceRows = ref<any[]>([])
+const attendanceEditorLoaded = ref(false)
+
+const attendanceAnchor = ref<HTMLElement | null>(null)
+const drillsAnchor = ref<HTMLElement | null>(null)
+const scoresAnchor = ref<HTMLElement | null>(null)
+
+type AnchorKey = 'attendance' | 'drills' | 'scores'
+const anchors: Record<AnchorKey, typeof attendanceAnchor> = {
+  attendance: attendanceAnchor,
+  drills: drillsAnchor,
+  scores: scoresAnchor,
+}
 
 const savingDrill = ref(false)
 const drillError = ref<string | null>(null)
@@ -462,9 +480,13 @@ function buildPendingRowsForAthlete(athleteId: number) {
 }
 
 async function fetchDashboard() {
-  loading.value = true
+  return fetchDashboardWith({ showLoading: true, clearDashboard: true })
+}
+
+async function fetchDashboardWith(opts: { showLoading: boolean; clearDashboard: boolean }) {
+  if (opts.showLoading) loading.value = true
   error.value = null
-  dashboard.value = null
+  if (opts.clearDashboard) dashboard.value = null
 
   const id = route.params.id
   const url = `/trainings/${id}/coach_dashboard/`
@@ -484,8 +506,21 @@ async function fetchDashboard() {
     }
     console.error(e)
   } finally {
-    loading.value = false
+    if (opts.showLoading) loading.value = false
   }
+}
+
+async function refreshDashboardAt(anchor: AnchorKey) {
+  await fetchDashboardWith({ showLoading: false, clearDashboard: false })
+  await nextTick()
+  const el = anchors[anchor].value
+  if (!el) return
+  const headerEl = document.querySelector('.page-header') as HTMLElement | null
+  const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0
+
+  const extraGap = 12
+  const y = window.scrollY + el.getBoundingClientRect().top - headerH - extraGap
+  window.scrollTo({ top: Math.max(0, y), behavior: 'auto' })
 }
 
 async function fetchCatalog() {
@@ -523,6 +558,7 @@ async function fetchAttendanceEditorData() {
       http.get('/athletes/?is_active=true&ordering=name'),
     ])
     buildAttendanceRowsFrom(athletes, dashboard.value?.attendance)
+    attendanceEditorLoaded.value = true
   } catch (e: any) {
     const status = e?.response?.status
     attendanceError.value = status ? `Falha ao carregar atletas (HTTP ${status}).` : 'Falha ao carregar atletas.'
@@ -545,7 +581,7 @@ async function saveAttendance() {
       checkin_time: null,
     }))
     await http.post(url, payload)
-    await fetchDashboard()
+    await refreshDashboardAt('attendance')
   } catch (e: any) {
     const status = e?.response?.status
     attendanceError.value = status ? `Falha ao salvar presença (HTTP ${status}).` : 'Falha ao salvar presença.'
@@ -583,7 +619,7 @@ async function addDrill() {
       weight: 1,
     }
 
-    await fetchDashboard()
+    await refreshDashboardAt('drills')
   } catch (e: any) {
     const status = e?.response?.status
     drillError.value = status ? `Falha ao adicionar drill (HTTP ${status}).` : 'Falha ao adicionar drill.'
@@ -598,7 +634,7 @@ async function deleteDrill(trainingDrillId: number) {
   drillError.value = null
   try {
     await http.delete(`/trainings/drills/${trainingDrillId}/`)
-    await fetchDashboard()
+    await refreshDashboardAt('drills')
   } catch (e: any) {
     const status = e?.response?.status
     drillError.value = status ? `Falha ao remover drill (HTTP ${status}).` : 'Falha ao remover drill.'
@@ -685,7 +721,7 @@ async function saveScore() {
       }))
     )
 
-    await fetchDashboard()
+    await refreshDashboardAt('scores')
 
     // Recarrega pendências; se acabou, remove atleta da seleção.
     const pending = getPendingDrillsForAthlete(athleteId)
@@ -709,7 +745,7 @@ onMounted(fetchDashboard)
 watch(
   () => dashboard.value,
   (val) => {
-    if (val) fetchAttendanceEditorData()
+    if (val && !attendanceEditorLoaded.value) fetchAttendanceEditorData()
   },
   { immediate: false }
 )
