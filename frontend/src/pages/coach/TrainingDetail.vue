@@ -233,35 +233,55 @@
                 clearable
               />
             </v-col>
-
-            <v-col cols="12" md="5">
-              <v-select
-                v-model="scoreForm.training_drill_id"
-                :items="scoreDrillItems"
-                item-title="label"
-                item-value="value"
-                label="Drill"
-                clearable
-              />
-            </v-col>
-
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model.number="scoreForm.score"
-                type="number"
-                label="Nota"
-                :hint="selectedScoreDrill ? `Max: ${selectedScoreDrill.max_score}` : undefined"
-                persistent-hint
-              />
-            </v-col>
-
-            <v-col cols="12">
-              <v-textarea v-model="scoreForm.comment" label="Comentário (opcional)" />
-            </v-col>
           </v-row>
 
-          <div class="text-body-2 text-medium-emphasis" v-if="existingScore">
-            Já existe avaliação para esta combinação. Ao salvar, ela será atualizada.
+          <v-alert
+            v-if="scoreForm.athlete_id && pendingScoreRows.length === 0"
+            type="info"
+            variant="tonal"
+            class="mt-2"
+          >
+            Nenhum drill pendente para este atleta.
+          </v-alert>
+
+          <div v-if="scoreForm.athlete_id && pendingScoreRows.length" class="table-scroll mt-3">
+            <v-table>
+              <thead>
+                <tr>
+                  <th style="width: 45%">Drill</th>
+                  <th style="width: 18%">Max</th>
+                  <th style="width: 18%">Nota</th>
+                  <th>Comentário</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in pendingScoreRows" :key="row.training_drill_id">
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.max_score }}</td>
+                  <td>
+                    <v-text-field
+                      v-model.number="row.score"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      :min="0"
+                      :max="row.max_score"
+                      step="0.1"
+                    />
+                  </td>
+                  <td>
+                    <v-text-field
+                      v-model="row.comment"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      placeholder="(opcional)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
           </div>
         </v-card-text>
       </v-card>
@@ -361,10 +381,17 @@ const { progressValue } = useProgressCircular(anyLoading)
 
 const scoreForm = ref({
   athlete_id: null as number | null,
-  training_drill_id: null as number | null,
-  score: null as number | null,
-  comment: '',
 })
+
+type PendingScoreRow = {
+  training_drill_id: number
+  label: string
+  max_score: number
+  score: number | null
+  comment: string
+}
+
+const pendingScoreRows = ref<PendingScoreRow[]>([])
 
 const attendanceStatusItems = [
   { label: 'Presente', value: 'PRESENT' },
@@ -387,9 +414,10 @@ const scoreAthleteItems = computed(() => {
   const presentStatus = new Set(['PRESENT', 'LATE'])
   return att
     .filter((a: any) => presentStatus.has(String(a?.status ?? 'PRESENT')))
+    .filter((a: any) => getPendingDrillsForAthlete(a.athlete_id).length > 0)
     .map((a: any) => ({
-    label: `${a.athlete_name}${a.jersey_number ? ` #${a.jersey_number}` : ''}`,
-    value: a.athlete_id,
+      label: `${a.athlete_name}${a.jersey_number ? ` #${a.jersey_number}` : ''}`,
+      value: a.athlete_id,
     }))
 })
 
@@ -400,43 +428,37 @@ watch(
     if (!current) return
     if (!items.some((i: any) => i.value === current)) {
       scoreForm.value.athlete_id = null
-      syncScoreFormFromExisting()
+      pendingScoreRows.value = []
     }
   },
   { immediate: true }
 )
 
-const scoreDrillItems = computed(() => {
-  const drills = dashboard.value?.drills ?? []
-  return drills.map((d: any) => ({
-    label: `${d.order}. ${d.name}`,
-    value: d.training_drill_id,
-  }))
-})
-
-const selectedScoreDrill = computed(() => {
-  const id = scoreForm.value.training_drill_id
-  if (!id) return null
-  return (dashboard.value?.drills ?? []).find((d: any) => d.training_drill_id === id) ?? null
-})
-
-const existingScore = computed(() => {
-  const athleteId = scoreForm.value.athlete_id
-  const drillId = scoreForm.value.training_drill_id
-  if (!athleteId || !drillId) return null
+function getScoreEntry(athleteId: number, trainingDrillId: number) {
   const map = dashboard.value?.score_map ?? {}
-  return map[String(athleteId)]?.[String(drillId)] ?? null
-})
+  const aKey = String(athleteId)
+  const dKey = String(trainingDrillId)
+  return (
+    map?.[aKey]?.[dKey] ??
+    map?.[athleteId]?.[trainingDrillId] ??
+    null
+  )
+}
 
-function syncScoreFormFromExisting() {
-  const ex = existingScore.value
-  if (ex) {
-    scoreForm.value.score = typeof ex.score === 'number' ? ex.score : Number(ex.score)
-    scoreForm.value.comment = ex.comment ?? ''
-    return
-  }
-  scoreForm.value.score = null
-  scoreForm.value.comment = ''
+function getPendingDrillsForAthlete(athleteId: number): any[] {
+  const drills = dashboard.value?.drills ?? []
+  return drills.filter((d: any) => !getScoreEntry(athleteId, d.training_drill_id))
+}
+
+function buildPendingRowsForAthlete(athleteId: number) {
+  const pending = getPendingDrillsForAthlete(athleteId)
+  pendingScoreRows.value = pending.map((d: any) => ({
+    training_drill_id: d.training_drill_id,
+    label: `${d.order}. ${d.name}`,
+    max_score: Number(d.max_score ?? 10),
+    score: null,
+    comment: '',
+  }))
 }
 
 async function fetchDashboard() {
@@ -615,23 +637,37 @@ async function downloadPdf() {
 async function saveScore() {
   scoreError.value = null
   const athleteId = scoreForm.value.athlete_id
-  const trainingDrillId = scoreForm.value.training_drill_id
-  const score = scoreForm.value.score
 
-  if (!athleteId || !trainingDrillId) {
-    scoreError.value = 'Selecione atleta e drill.'
+  if (!athleteId) {
+    scoreError.value = 'Selecione um atleta.'
     return
   }
 
-  if (score === null || Number.isNaN(Number(score))) {
-    scoreError.value = 'Informe uma nota.'
+  const toSave = pendingScoreRows.value
+    .filter((r) => r.score !== null && !Number.isNaN(Number(r.score)))
+    .map((r) => ({
+      training_drill: r.training_drill_id,
+      athlete: athleteId,
+      score: Number(r.score),
+      comment: r.comment?.trim() ? r.comment.trim() : null,
+      max_score: r.max_score,
+      label: r.label,
+    }))
+
+  if (toSave.length === 0) {
+    scoreError.value = 'Informe ao menos uma nota.'
     return
   }
 
-  const maxScore = selectedScoreDrill.value?.max_score
-  if (typeof maxScore === 'number' && Number(score) > maxScore) {
-    scoreError.value = `Nota maior que o máximo (${maxScore}).`
-    return
+  for (const it of toSave) {
+    if (it.score < 0) {
+      scoreError.value = `Nota inválida em ${it.label}.`
+      return
+    }
+    if (typeof it.max_score === 'number' && it.score > it.max_score) {
+      scoreError.value = `Nota maior que o máximo (${it.max_score}) em ${it.label}.`
+      return
+    }
   }
 
   savingScore.value = true
@@ -639,15 +675,26 @@ async function saveScore() {
   const url = `/trainings/${id}/scores_bulk/`
   lastUrl.value = url
   try {
-    await http.post(url, [{
-      training_drill: trainingDrillId,
-      athlete: athleteId,
-      score: Number(score),
-      comment: scoreForm.value.comment?.trim() ? scoreForm.value.comment.trim() : null,
-    }])
+    await http.post(
+      url,
+      toSave.map((x) => ({
+        training_drill: x.training_drill,
+        athlete: x.athlete,
+        score: x.score,
+        comment: x.comment,
+      }))
+    )
 
     await fetchDashboard()
-    syncScoreFormFromExisting()
+
+    // Recarrega pendências; se acabou, remove atleta da seleção.
+    const pending = getPendingDrillsForAthlete(athleteId)
+    if (pending.length === 0) {
+      scoreForm.value.athlete_id = null
+      pendingScoreRows.value = []
+    } else {
+      buildPendingRowsForAthlete(athleteId)
+    }
   } catch (e: any) {
     const status = e?.response?.status
     scoreError.value = status ? `Falha ao salvar avaliação (HTTP ${status}).` : 'Falha ao salvar avaliação.'
@@ -670,8 +717,14 @@ watch(
 onMounted(fetchCatalog)
 
 watch(
-  () => [scoreForm.value.athlete_id, scoreForm.value.training_drill_id],
-  () => syncScoreFormFromExisting()
+  () => scoreForm.value.athlete_id,
+  (athleteId) => {
+    if (!athleteId) {
+      pendingScoreRows.value = []
+      return
+    }
+    buildPendingRowsForAthlete(athleteId)
+  }
 )
 </script>
 
