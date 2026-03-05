@@ -7,6 +7,17 @@
       <v-chip v-if="auth.me" class="mr-3 d-none d-sm-flex" variant="tonal">
         {{ auth.me.username }} • {{ auth.me.role }}
       </v-chip>
+      <v-btn
+        v-if="showInstallButton"
+        class="mr-2"
+        size="small"
+        variant="tonal"
+        :loading="installing"
+        @click="onInstallClick"
+      >
+        <v-icon start>mdi-download-box</v-icon>
+        Instalar
+      </v-btn>
       <v-btn size="small" variant="tonal" @click="onLogout">Sair</v-btn>
     </v-app-bar>
 
@@ -113,6 +124,11 @@ import { useAuthStore } from '../stores/auth'
 import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
 import { http } from '../api/http'
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 const drawer = ref(false)
 const rail = ref(true)
 const changePasswordOpen = ref(false)
@@ -123,6 +139,26 @@ const display = useDisplay()
 const isMobile = computed(() => display.smAndDown.value)
 
 const athletePhotoUrl = ref<string | null>(null)
+
+const installPrompt = ref<BeforeInstallPromptEvent | null>(null)
+const installing = ref(false)
+const installButtonUsed = ref(false)
+
+const INSTALL_USED_KEY = 'pwa_install_prompt_used'
+
+function isAppInstalled(): boolean {
+  if (typeof window === 'undefined') return false
+  const mm = window.matchMedia?.('(display-mode: standalone)')
+  if (mm?.matches) return true
+  // iOS Safari
+  return Boolean((window.navigator as any)?.standalone)
+}
+
+const showInstallButton = computed(() => {
+  if (installButtonUsed.value) return false
+  if (isAppInstalled()) return false
+  return Boolean(installPrompt.value)
+})
 
 function resolveApiRoot(): string {
   const base = String(http.defaults.baseURL ?? '')
@@ -167,7 +203,51 @@ watch(
 
 onMounted(() => {
   fetchAthletePhotoIfAny()
+
+  try {
+    installButtonUsed.value = localStorage.getItem(INSTALL_USED_KEY) === '1'
+  } catch {
+    // ignore
+  }
+
+  // PWA install prompt handling
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    // Make the prompt available to a user gesture (button)
+    e.preventDefault()
+    installPrompt.value = e as BeforeInstallPromptEvent
+  })
+  window.addEventListener('appinstalled', () => {
+    installPrompt.value = null
+    installButtonUsed.value = true
+    try {
+      localStorage.setItem(INSTALL_USED_KEY, '1')
+    } catch {
+      // ignore
+    }
+  })
 })
+
+async function onInstallClick() {
+  if (!installPrompt.value) return
+  installing.value = true
+  try {
+    await installPrompt.value.prompt()
+    try {
+      await installPrompt.value.userChoice
+    } finally {
+      // Most browsers allow prompt only once per captured event.
+      installPrompt.value = null
+      installButtonUsed.value = true
+      try {
+        localStorage.setItem(INSTALL_USED_KEY, '1')
+      } catch {
+        // ignore
+      }
+    }
+  } finally {
+    installing.value = false
+  }
+}
 
 function openChangePassword() {
   drawer.value = false
