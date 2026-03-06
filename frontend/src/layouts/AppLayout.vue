@@ -8,6 +8,15 @@
         {{ auth.me.username }} • {{ auth.me.role }}
       </v-chip>
       <v-btn
+        icon
+        variant="text"
+        class="mr-1"
+        :aria-label="isDark ? 'Ativar modo claro' : 'Ativar modo escuro'"
+        @click="toggleTheme"
+      >
+        <v-icon>{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+      </v-btn>
+      <v-btn
         v-if="showInstallButton"
         class="mr-2"
         size="small"
@@ -118,7 +127,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useDisplay } from 'vuetify'
+import { useDisplay, useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
@@ -135,10 +144,36 @@ const changePasswordOpen = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 const display = useDisplay()
+const theme = useTheme()
 
 const isMobile = computed(() => display.smAndDown.value)
 
 const athletePhotoUrl = ref<string | null>(null)
+
+const THEME_KEY = 'theme_preference'
+const isDark = computed(() => Boolean(theme.global.current.value.dark))
+
+function loadThemePreference() {
+  try {
+    const v = localStorage.getItem(THEME_KEY)
+    if (v === 'light' || v === 'dark') theme.global.name.value = v
+  } catch {
+    // ignore
+  }
+}
+
+function applyThemePreference(value: 'light' | 'dark') {
+  theme.global.name.value = value
+  try {
+    localStorage.setItem(THEME_KEY, value)
+  } catch {
+    // ignore
+  }
+}
+
+function toggleTheme() {
+  applyThemePreference(isDark.value ? 'light' : 'dark')
+}
 
 const installPrompt = ref<BeforeInstallPromptEvent | null>(null)
 const installing = ref(false)
@@ -203,6 +238,7 @@ watch(
 
 onMounted(() => {
   fetchAthletePhotoIfAny()
+  loadThemePreference()
 
   try {
     installButtonUsed.value = localStorage.getItem(INSTALL_USED_KEY) === '1'

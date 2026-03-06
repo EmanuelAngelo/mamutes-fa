@@ -14,6 +14,14 @@ import 'vuetify/styles'
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
   theme: {
-    defaultTheme: 'system',
+    defaultTheme: (() => {
+      try {
+        const v = localStorage.getItem('theme_preference')
+        if (v === 'light' || v === 'dark') return v
+      } catch {
+        // ignore
+      }
+      return 'system'
+    })(),
   },
 })
