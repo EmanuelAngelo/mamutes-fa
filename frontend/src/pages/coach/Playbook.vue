@@ -43,6 +43,36 @@
     </div>
 
     <div v-else class="mt-4">
+      <v-sheet
+        v-if="plays.length"
+        class="pa-4 mb-4"
+        variant="tonal"
+        rounded="xl"
+      >
+        <v-row density="comfortable" align="center">
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="filterCategory"
+              :items="categoryItems"
+              label="Playbook (Ataque/Defesa)"
+              variant="outlined"
+              clearable
+              hide-details
+            />
+          </v-col>
+          <v-col cols="12" md="8">
+            <v-text-field
+              v-model="filterName"
+              label="Pesquisar pelo nome"
+              variant="outlined"
+              clearable
+              hide-details
+              prepend-inner-icon="mdi-magnify"
+            />
+          </v-col>
+        </v-row>
+      </v-sheet>
+
       <div v-if="plays.length === 0" class="text-center py-12">
         <div class="d-flex justify-center mb-4">
           <v-avatar size="72" variant="tonal">
@@ -66,8 +96,15 @@
         </v-btn>
       </div>
 
+      <div v-else-if="filteredPlays.length === 0" class="text-center py-10">
+        <div class="text-h6 font-weight-bold">Nenhuma jogada encontrada</div>
+        <div class="text-body-2 text-medium-emphasis mt-1">
+          Tente ajustar os filtros ou a busca.
+        </div>
+      </div>
+
       <v-row v-else density="comfortable">
-        <v-col v-for="p in plays" :key="p.id" cols="12" sm="6" lg="4">
+        <v-col v-for="p in filteredPlays" :key="p.id" cols="12" sm="6" lg="4">
           <v-hover v-slot="{ isHovering, props }">
             <v-card v-bind="props" variant="tonal" rounded="xl" class="play-card">
               <div class="play-preview">
@@ -554,6 +591,28 @@ const meta = ref({
 })
 
 const categoryItems = ['Ataque', 'Defesa']
+
+const filterCategory = ref<string | null>(null)
+const filterName = ref('')
+
+const filteredPlays = computed(() => {
+  const category = String(filterCategory.value ?? '').trim()
+  const q = filterName.value.trim().toLowerCase()
+
+  return plays.value.filter((p) => {
+    if (category) {
+      const pCategory = String(p.category ?? '').trim()
+      if (pCategory !== category) return false
+    }
+
+    if (q) {
+      const name = String(p.name ?? '').toLowerCase()
+      if (!name.includes(q)) return false
+    }
+
+    return true
+  })
+})
 
 const formationItems = computed(() => {
   const base = ['shotgun', 'pistol', 'i_formation', 'trips_right', 'trips_left', 'spread']

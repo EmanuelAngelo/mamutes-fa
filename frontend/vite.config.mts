@@ -1,9 +1,38 @@
 import { fileURLToPath, URL } from 'node:url'
 import Vue from '@vitejs/plugin-vue'
 import Fonts from 'unplugin-fonts/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 import { VitePWA } from 'vite-plugin-pwa'
+
+function stripMdiFontPreloads(): Plugin {
+  const preloadRegex =
+    /<link\b[^>]*rel=["']preload["'][^>]*href=["'][^"']*materialdesignicons-webfont-[^"']+\.(?:woff2|woff|ttf|eot)(?:\?[^"']*)?["'][^>]*>\s*/gi
+
+  return {
+    name: 'strip-mdi-font-preloads',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      // Chrome warns if a preloaded font isn't used shortly after load.
+      // MDI webfont is often only needed after route/components mount.
+      return html.replace(preloadRegex, '')
+    },
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== 'asset') continue
+        if (!chunk.fileName.endsWith('.html')) continue
+
+        const source =
+          typeof chunk.source === 'string'
+            ? chunk.source
+            : Buffer.from(chunk.source).toString('utf8')
+
+        const updated = source.replace(preloadRegex, '')
+        if (updated !== source) chunk.source = updated
+      }
+    },
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -63,6 +92,7 @@ export default defineConfig({
         ],
       },
     }),
+    stripMdiFontPreloads(),
   ],
   define: { 'process.env': {} },
   resolve: {
