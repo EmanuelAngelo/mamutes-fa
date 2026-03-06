@@ -156,14 +156,14 @@ const isDark = computed(() => Boolean(theme.global.current.value.dark))
 function loadThemePreference() {
   try {
     const v = localStorage.getItem(THEME_KEY)
-    if (v === 'light' || v === 'dark') theme.global.name.value = v
+    if (v === 'light' || v === 'dark') theme.change(v)
   } catch {
     // ignore
   }
 }
 
 function applyThemePreference(value: 'light' | 'dark') {
-  theme.global.name.value = value
+  theme.change(value)
   try {
     localStorage.setItem(THEME_KEY, value)
   } catch {

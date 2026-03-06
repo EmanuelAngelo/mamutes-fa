@@ -104,56 +104,102 @@
           md="4"
           lg="3"
         >
-          <div class="athlete-card" :style="{ '--delay': `${index * 50}ms` }">
-            <div class="athlete-card__under" />
+          <div class="athlete-fc" :style="[fcCardVars(a), { '--delay': `${index * 50}ms` }]">
+            <div class="athlete-fc__glow" />
 
-            <v-card class="athlete-card__main" rounded="xl">
-              <div class="athlete-card__watermark">{{ jerseyText(a) }}</div>
+            <div class="athlete-fc__card">
+              <svg
+                class="athlete-fc__pattern"
+                viewBox="0 0 220 310"
+                preserveAspectRatio="xMidYMid slice"
+                aria-hidden="true"
+              >
+                <polygon
+                  points="110,30 190,80 190,180 110,230 30,180 30,80"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.6)"
+                  stroke-width="1.5"
+                />
+                <polygon
+                  points="110,55 165,90 165,170 110,205 55,170 55,90"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.5)"
+                  stroke-width="1"
+                />
+                <polygon
+                  points="110,75 145,105 145,155 110,185 75,155 75,105"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.35)"
+                  stroke-width="0.8"
+                />
+                <line x1="0" y1="0" x2="220" y2="155" stroke="rgba(255,255,255,0.15)" stroke-width="40" />
+                <line x1="0" y1="93" x2="132" y2="0" stroke="rgba(255,255,255,0.10)" stroke-width="20" />
+              </svg>
 
-              <div class="athlete-card__photo">
-                <div class="athlete-card__glow" />
-                <div class="athlete-card__photo-inner">
-                  <v-img v-if="athletePhotoUrl(a)" :src="athletePhotoUrl(a)" cover />
-                  <div v-else class="athlete-card__photo-empty">
-                    <v-icon size="44" class="opacity-60">mdi-account</v-icon>
-                  </div>
-                </div>
+              <div class="athlete-fc__shine" />
 
-                <div class="athlete-card__badge">{{ jerseyText(a) }}</div>
-              </div>
-
-              <div class="athlete-card__info">
-                <div class="athlete-card__name" :title="a.name">{{ a.name }}</div>
-                <div class="athlete-card__pos">{{ (a.current_position || '-').toString() }}</div>
-
-                <div class="athlete-card__status">
-                  <span class="athlete-card__dot" :class="statusDotClass(a)" />
-                  <span class="text-medium-emphasis">{{ a.is_active ? 'Ativo' : 'Inativo' }}</span>
-                </div>
-
-                <div class="athlete-card__rating">
-                  <div class="athlete-card__rating-title">
-                    <v-icon size="16" class="athlete-card__star">mdi-star</v-icon>
-                    <span>Desempenho</span>
-                  </div>
-
-                  <div class="athlete-card__rating-pill" :class="ratingClass(a)">
-                    <span class="athlete-card__rating-score">{{ ratingValue(a).toFixed(1) }}</span>
-                    <span class="athlete-card__rating-label">{{ ratingLabel(ratingValue(a)) }}</span>
-                  </div>
-                </div>
-
-                <div class="athlete-card__actions">
-                  <v-btn size="small" variant="tonal" class="flex-grow-1" @click.stop="edit(a)">
-                    <v-icon start size="16">mdi-pencil</v-icon>
-                    Editar
-                  </v-btn>
-                  <v-btn size="small" variant="tonal" color="error" @click.stop="askRemove(a)">
-                    <v-icon size="16">mdi-trash-can</v-icon>
-                  </v-btn>
+              <div class="athlete-fc__ovr">
+                <div class="athlete-fc__ovr-num">{{ fcOvr(a) }}</div>
+                <div class="athlete-fc__ovr-pos">{{ fcPosShort(a) }}</div>
+                <div class="athlete-fc__ovr-badge">
+                  <span
+                    v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''"
+                    class="athlete-fc__ovr-jersey"
+                  >
+                    {{ jerseyText(a) }}
+                  </span>
+                  <span v-else class="athlete-fc__ovr-dot" />
                 </div>
               </div>
-            </v-card>
+
+              <div class="athlete-fc__photo">
+                <img
+                  v-if="athletePhotoUrl(a)"
+                  :src="athletePhotoUrl(a)"
+                  :alt="a.name"
+                  class="athlete-fc__img"
+                  loading="lazy"
+                />
+                <div v-else class="athlete-fc__img-empty">
+                  <v-icon size="80" class="opacity-35">mdi-account</v-icon>
+                </div>
+              </div>
+
+              <div class="athlete-fc__footer">
+                <div class="athlete-fc__divider" />
+
+                <div class="athlete-fc__name-wrap">
+                  <div class="athlete-fc__name" :title="a.name">{{ a.name }}</div>
+                </div>
+
+                <div class="athlete-fc__attrs">
+                  <div v-for="(lbl, i) in FC_ATTRS" :key="lbl" class="athlete-fc__attr">
+                    <div class="athlete-fc__attr-val">{{ fcAttrs(a)[i] }}</div>
+                    <div class="athlete-fc__attr-lbl">{{ lbl }}</div>
+                  </div>
+                </div>
+
+                <div class="athlete-fc__meta">
+                  <span class="athlete-fc__dot" :class="statusDotClass(a)" />
+                  <span class="athlete-fc__meta-text">
+                    {{ a.is_active ? 'Ativo' : 'Inativo' }}
+                    <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
+                      · #{{ jerseyText(a) }}
+                    </template>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="athlete-fc__actions">
+              <v-btn size="small" variant="tonal" class="flex-grow-1" @click.stop="edit(a)">
+                <v-icon start size="16">mdi-pencil</v-icon>
+                Editar
+              </v-btn>
+              <v-btn size="small" variant="tonal" color="error" @click.stop="askRemove(a)">
+                <v-icon size="16">mdi-trash-can</v-icon>
+              </v-btn>
+            </div>
           </div>
         </v-col>
       </template>
@@ -536,6 +582,90 @@ function ratingLabel(r: number): string {
   if (r >= 5) return 'Regular'
   if (r >= 3) return 'Fraco'
   return 'Crítico'
+}
+
+// Card estilo “OVR” (derivado da nota e posição)
+// Atributos em siglas focadas em Futebol Americano:
+// VEL (velocidade), PAS (passe/lançamento), REC (recepção), BLO (bloqueio), COB (cobertura/defesa no passe), FOR (força/físico)
+const FC_ATTRS = ['VEL', 'PAS', 'REC', 'BLO', 'COB', 'FOR'] as const
+
+function fcOvr(a: any): string {
+  const r = ratingValue(a)
+  const ovr = Math.round(r * 10)
+  return ovr > 0 ? String(ovr) : '--'
+}
+
+function fcPosShort(a: any): string {
+  const p = String(a?.current_position || '').trim()
+  if (!p) return 'POS'
+  return p.slice(0, 3).toUpperCase()
+}
+
+function deriveFcAttrs(rating: number, positionCode: string | null | undefined): number[] {
+  const base = Math.round((rating || 5) * 9) // ~0-90
+  const clamp = (o: number) => Math.min(99, Math.max(25, base + o))
+  const pos = String(positionCode || '').toUpperCase()
+
+  // PERFIS (QB/C/WR/RB/DB/R/S/CB)
+  // Ordem: VEL, PAS, REC, BLO, COB, FOR
+  if (pos === 'QB') return [clamp(-4), clamp(+20), clamp(-10), clamp(-14), clamp(-16), clamp(+8)]
+  if (pos === 'C') return [clamp(-14), clamp(-18), clamp(-18), clamp(+22), clamp(+8), clamp(+18)]
+  if (pos === 'WR') return [clamp(+20), clamp(-10), clamp(+18), clamp(-10), clamp(-10), clamp(+4)]
+  if (pos === 'RB') return [clamp(+18), clamp(-6), clamp(+10), clamp(-6), clamp(-10), clamp(+10)]
+  if (pos === 'DB') return [clamp(+14), clamp(-16), clamp(+8), clamp(-12), clamp(+20), clamp(+6)]
+  if (pos === 'R') return [clamp(+10), clamp(-18), clamp(-14), clamp(+10), clamp(+12), clamp(+20)]
+  if (pos === 'S') return [clamp(+12), clamp(-14), clamp(+6), clamp(-8), clamp(+18), clamp(+12)]
+  if (pos === 'CB') return [clamp(+16), clamp(-16), clamp(+10), clamp(-12), clamp(+18), clamp(+6)]
+  return [clamp(0), clamp(0), clamp(0), clamp(0), clamp(0), clamp(0)]
+}
+
+function fcAttrs(a: any): number[] {
+  return deriveFcAttrs(ratingValue(a), a?.current_position)
+}
+
+function fcCardVars(a: any): Record<string, string> {
+  const r = ratingValue(a)
+  // Tema do card baseado na nota (sem hardcode de cores: usa tokens do Vuetify)
+  // Faixas pedidas: 0–6 (cinza), 7 (vermelho), 8–9 (verde claro), 10 (dourado)
+  const isTen = r >= 9.95
+
+  if (isTen) {
+    return {
+      '--fc-g1': 'rgba(var(--v-theme-warning), 1)',
+      '--fc-g2': 'rgba(var(--v-theme-warning), 0.78)',
+      '--fc-g3': 'rgba(var(--v-theme-warning), 0.52)',
+      '--fc-border': 'rgba(var(--v-theme-warning), 0.65)',
+      '--fc-glow': 'rgba(var(--v-theme-warning), 0.55)',
+    }
+  }
+
+  if (r >= 8) {
+    return {
+      '--fc-g1': 'rgba(var(--v-theme-success), 0.90)',
+      '--fc-g2': 'rgba(var(--v-theme-success), 0.68)',
+      '--fc-g3': 'rgba(var(--v-theme-success), 0.44)',
+      '--fc-border': 'rgba(var(--v-theme-success), 0.55)',
+      '--fc-glow': 'rgba(var(--v-theme-success), 0.45)',
+    }
+  }
+
+  if (r >= 7) {
+    return {
+      '--fc-g1': 'rgba(var(--v-theme-error), 0.92)',
+      '--fc-g2': 'rgba(var(--v-theme-error), 0.70)',
+      '--fc-g3': 'rgba(var(--v-theme-error), 0.48)',
+      '--fc-border': 'rgba(var(--v-theme-error), 0.58)',
+      '--fc-glow': 'rgba(var(--v-theme-error), 0.48)',
+    }
+  }
+
+  return {
+    '--fc-g1': 'rgba(var(--v-theme-surface-variant), 1)',
+    '--fc-g2': 'rgba(var(--v-theme-on-surface), 0.18)',
+    '--fc-g3': 'rgba(var(--v-theme-on-surface), 0.10)',
+    '--fc-border': 'rgba(var(--v-theme-on-surface), 0.20)',
+    '--fc-glow': 'rgba(var(--v-theme-on-surface), 0.24)',
+  }
 }
 
 function statusDotClass(a: any): string {
@@ -1027,152 +1157,294 @@ watch([search, positionFilter], () => {
   background: rgba(var(--v-theme-surface), 0.55);
 }
 
-.athlete-card {
-  position: relative;
-}
+.athlete-fc {
+  --fc-g1: rgba(var(--v-theme-warning), 1);
+  --fc-g2: rgba(var(--v-theme-warning), 0.75);
+  --fc-g3: rgba(var(--v-theme-warning), 0.55);
+  --fc-border: rgba(var(--v-theme-warning), 0.55);
+  --fc-glow: rgba(var(--v-theme-warning), 0.45);
+  /* Texto sempre segue o tema (light/dark), não a cor da nota */
+  --fc-text: rgba(var(--v-theme-on-surface), 1);
+  --fc-sub: rgba(var(--v-theme-on-surface), 0.75);
 
-.athlete-card__under {
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--v-theme-background), 0.9),
-    rgba(var(--v-theme-surface), 0.9)
-  );
-  transform: rotate(1deg);
-  transition: transform 220ms ease;
-}
-
-.athlete-card__main {
   position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
-  background: linear-gradient(
-    135deg,
-    rgba(var(--v-theme-surface), 1),
-    rgba(var(--v-theme-background), 1)
-  );
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
-  transition: transform 220ms ease;
+  width: 220px;
+  margin: 0 auto;
+  padding-bottom: 44px;
   animation: athleteFadeUp 320ms ease both;
   animation-delay: var(--delay, 0ms);
 }
 
-.athlete-card:hover .athlete-card__under {
-  transform: rotate(2deg);
-}
-
-.athlete-card:hover .athlete-card__main {
-  transform: translateY(-8px) scale(1.02);
-}
-
-.athlete-card__watermark {
+.athlete-fc__glow {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  font-weight: 900;
-  font-size: 64px;
-  line-height: 1;
-  opacity: 0.08;
-  color: rgba(var(--v-theme-on-surface), 1);
+  inset: -6px;
+  border-radius: 24px;
+  background: radial-gradient(ellipse, var(--fc-glow) 0%, transparent 70%);
+  filter: blur(14px);
+  z-index: 0;
+  opacity: 0.7;
+}
+
+.athlete-fc__card {
+  position: relative;
+  width: 220px;
+  height: 310px;
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--fc-g1) 0%, var(--fc-g2) 55%, var(--fc-g3) 100%);
+  box-shadow:
+    0 0 0 2px var(--fc-border),
+    0 12px 40px var(--fc-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  z-index: 1;
+  transition: transform 220ms ease;
+}
+
+.athlete-fc:hover .athlete-fc__card {
+  transform: translateY(-10px) scale(1.04);
+}
+
+.athlete-fc__pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.2;
   pointer-events: none;
 }
 
-.athlete-card__photo {
-  position: relative;
-  padding: 18px 18px 10px;
-  display: flex;
-  justify-content: center;
-}
-
-.athlete-card__glow {
+.athlete-fc__shine {
   position: absolute;
-  width: 130px;
-  height: 130px;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(var(--v-theme-warning), 0.45),
-    rgba(var(--v-theme-warning), 0)
-  );
-  filter: blur(10px);
-  opacity: 0.55;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 50%;
+  background: radial-gradient(ellipse at 20% 20%, rgba(255, 255, 255, 0.30) 0%, transparent 70%);
+  pointer-events: none;
 }
 
-.athlete-card__photo-inner {
-  width: 112px;
-  height: 112px;
-  border-radius: 999px;
+.athlete-fc__ovr {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+  line-height: 1;
+  text-align: center;
+  padding: 10px 10px 8px;
+  border-radius: 14px;
+  background: rgba(var(--v-theme-surface), 0.35);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.athlete-fc__ovr-num {
+  font-size: 46px;
+  font-weight: 900;
+  color: var(--fc-text);
+  line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-style: italic;
+}
+
+.athlete-fc__ovr-pos {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--fc-sub);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+.athlete-fc__ovr-badge {
+  margin-top: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--fc-g2), var(--fc-g3));
+  border: 1.5px solid var(--fc-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.30);
+}
+
+.athlete-fc__ovr-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.athlete-fc__ovr-jersey {
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 1);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.athlete-fc__photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 90px;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   overflow: hidden;
-  border: 4px solid rgba(var(--v-theme-warning), 0.25);
-  background: rgba(var(--v-theme-on-surface), 0.06);
-  position: relative;
 }
 
-.athlete-card__photo-empty {
+.athlete-fc__photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.22) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.athlete-fc__img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  transform: scale(1.08);
+  transition: transform 220ms ease;
+  filter: contrast(1.02) saturate(1.02);
+}
+
+.athlete-fc:hover .athlete-fc__img {
+  transform: scale(1.14);
+}
+
+.athlete-fc__img-empty {
+  height: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.athlete-card__badge {
+.athlete-fc__footer {
   position: absolute;
-  right: calc(50% - 56px);
-  bottom: 2px;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  color: rgba(var(--v-theme-on-warning), 1);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   background: linear-gradient(
-    135deg,
-    rgba(var(--v-theme-warning), 1),
-    rgba(var(--v-theme-warning), 0.75)
+    0deg,
+    rgba(var(--v-theme-surface), 0.92) 0%,
+    rgba(var(--v-theme-surface), 0.64) 60%,
+    rgba(var(--v-theme-surface), 0) 100%
   );
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+  padding-top: 20px;
+  padding-bottom: 12px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
-.athlete-card__info {
-  padding: 8px 18px 16px;
+.athlete-fc__divider {
+  height: 1px;
+  background: rgba(var(--v-theme-on-surface), 0.22);
+  margin: 0 8px 6px;
+}
+
+.athlete-fc__name-wrap {
+  margin: 0 8px 8px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-surface), 0.72);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  box-shadow: inset 0 1px 0 rgba(var(--v-theme-on-surface), 0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+.athlete-fc__name-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(var(--v-theme-on-surface), 0.10) 45%, transparent 100%);
+  transform: translateX(-60%);
+  opacity: 0;
+  transition: transform 260ms ease, opacity 260ms ease;
+  pointer-events: none;
+}
+
+.athlete-fc:hover .athlete-fc__name-wrap::after {
+  transform: translateX(60%);
+  opacity: 1;
+}
+
+.athlete-fc__name {
+  text-align: center;
+  font-weight: 950;
+  font-size: 14px;
+  color: var(--fc-text);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.18),
+    0 8px 20px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.athlete-fc__attrs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  padding-bottom: 4px;
+}
+
+.athlete-fc__attr {
   text-align: center;
 }
 
-.athlete-card__name {
-  font-size: 18px;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.athlete-fc__attr-val {
+  font-weight: 900;
+  font-size: 13px;
+  color: var(--fc-text);
+  line-height: 1;
 }
 
-.athlete-card__pos {
-  margin-top: 2px;
-  font-size: 12px;
+.athlete-fc__attr-lbl {
   font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: 8px;
+  color: var(--fc-sub);
   text-transform: uppercase;
-  color: rgba(var(--v-theme-warning), 0.95);
+  letter-spacing: 0.5px;
+  margin-top: 1px;
 }
 
-.athlete-card__status {
-  margin-top: 10px;
+.athlete-fc__meta {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  margin-top: 4px;
 }
 
-.athlete-card__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+.athlete-fc__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.athlete-fc__meta-text {
+  font-size: 8px;
+  color: var(--fc-sub);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .dot--active {
@@ -1183,74 +1455,21 @@ watch([search, positionFilter], () => {
   background: rgba(var(--v-theme-on-surface), 0.35);
 }
 
-.athlete-card__rating {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.10);
-}
-
-.athlete-card__rating-title {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.65);
-}
-
-.athlete-card__star {
-  color: rgba(var(--v-theme-warning), 1);
-}
-
-.athlete-card__rating-pill {
-  margin-top: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  color: rgba(var(--v-theme-on-primary), 1);
-}
-
-.athlete-card__rating-score {
-  font-size: 22px;
-  font-weight: 900;
-}
-
-.athlete-card__rating-label {
-  font-size: 11px;
-  opacity: 0.9;
-  font-weight: 700;
-}
-
-.rating--good {
-  background: linear-gradient(90deg, rgba(var(--v-theme-success), 1), rgba(var(--v-theme-success), 0.78));
-}
-
-.rating--ok {
-  background: linear-gradient(90deg, rgba(var(--v-theme-warning), 1), rgba(var(--v-theme-warning), 0.78));
-}
-
-.rating--mid {
-  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 1), rgba(var(--v-theme-primary), 0.78));
-}
-
-.rating--bad {
-  background: linear-gradient(90deg, rgba(var(--v-theme-error), 1), rgba(var(--v-theme-error), 0.78));
-}
-
-.athlete-card__actions {
-  margin-top: 14px;
+.athlete-fc__actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   gap: 8px;
+  padding: 0 4px;
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 220ms ease, transform 220ms ease;
+  z-index: 20;
 }
 
-.athlete-card:hover .athlete-card__actions {
+.athlete-fc:hover .athlete-fc__actions {
   opacity: 1;
   transform: translateY(0);
 }
