@@ -248,6 +248,16 @@
                 clearable
               />
             </v-col>
+            <v-col cols="12" md="4" class="d-flex align-center">
+              <v-btn
+                v-if="scoreForm.athlete_id && canEditScoresForSelectedAthlete && scoreMode === 'pending'"
+                color="primary"
+                variant="tonal"
+                @click="startEditScores"
+              >
+                Editar avaliação
+              </v-btn>
+            </v-col>
           </v-row>
 
           <v-alert
@@ -257,6 +267,17 @@
             class="mt-2"
           >
             Nenhum drill pendente para este atleta.
+            <template #append>
+              <v-btn
+                v-if="canEditScoresForSelectedAthlete"
+                size="small"
+                color="primary"
+                variant="tonal"
+                @click="startEditScores"
+              >
+                Refazer avaliação
+              </v-btn>
+            </template>
           </v-alert>
 
           <div v-if="scoreForm.athlete_id && pendingScoreRows.length" class="table-scroll mt-3">
@@ -411,6 +432,8 @@ const scoreForm = ref({
   athlete_id: null as number | null,
 })
 
+const scoreMode = ref<'pending' | 'edit'>('pending')
+
 type PendingScoreRow = {
   training_drill_id: number
   label: string
@@ -442,11 +465,18 @@ const scoreAthleteItems = computed(() => {
   const presentStatus = new Set(['PRESENT', 'LATE'])
   return att
     .filter((a: any) => presentStatus.has(String(a?.status ?? 'PRESENT')))
-    .filter((a: any) => getPendingDrillsForAthlete(a.athlete_id).length > 0)
     .map((a: any) => ({
       label: `${a.athlete_name}${a.jersey_number ? ` #${a.jersey_number}` : ''}`,
       value: a.athlete_id,
     }))
+})
+
+const canEditScoresForSelectedAthlete = computed(() => {
+  const athleteId = scoreForm.value.athlete_id
+  if (!athleteId) return false
+  const drills = dashboard.value?.drills ?? []
+  if (!Array.isArray(drills) || drills.length === 0) return false
+  return drills.some((d: any) => Boolean(getScoreEntry(athleteId, d.training_drill_id)))
 })
 
 watch(
@@ -476,6 +506,27 @@ function getScoreEntry(athleteId: number, trainingDrillId: number) {
 function getPendingDrillsForAthlete(athleteId: number): any[] {
   const drills = dashboard.value?.drills ?? []
   return drills.filter((d: any) => !getScoreEntry(athleteId, d.training_drill_id))
+}
+
+function buildEditRowsForAthlete(athleteId: number) {
+  const drills = dashboard.value?.drills ?? []
+  pendingScoreRows.value = drills.map((d: any) => {
+    const entry = getScoreEntry(athleteId, d.training_drill_id)
+    return {
+      training_drill_id: d.training_drill_id,
+      label: `${d.order}. ${d.name}`,
+      max_score: Number(d.max_score ?? 10),
+      score: entry?.score ?? null,
+      comment: String(entry?.comment ?? ''),
+    }
+  })
+}
+
+function startEditScores() {
+  const athleteId = scoreForm.value.athlete_id
+  if (!athleteId) return
+  scoreMode.value = 'edit'
+  buildEditRowsForAthlete(athleteId)
 }
 
 function buildPendingRowsForAthlete(athleteId: number) {
@@ -733,10 +784,13 @@ async function saveScore() {
 
     await refreshDashboardAt('scores')
 
+    // Após salvar (inclusive no "refazer/editar"), volta para o modo padrão.
+    // Assim a tabela não fica presa no estado de edição com valores preenchidos.
+    scoreMode.value = 'pending'
+
     // Recarrega pendências; se acabou, remove atleta da seleção.
     const pending = getPendingDrillsForAthlete(athleteId)
     if (pending.length === 0) {
-      scoreForm.value.athlete_id = null
       pendingScoreRows.value = []
     } else {
       buildPendingRowsForAthlete(athleteId)
@@ -769,6 +823,7 @@ watch(
       pendingScoreRows.value = []
       return
     }
+    scoreMode.value = 'pending'
     buildPendingRowsForAthlete(athleteId)
   }
 )
