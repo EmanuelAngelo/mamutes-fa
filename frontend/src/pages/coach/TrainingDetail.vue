@@ -25,6 +25,16 @@
           <v-icon start>mdi-file-pdf-box</v-icon>
           Exportar PDF
         </v-btn>
+
+        <v-btn
+          class="ml-2"
+          variant="tonal"
+          rounded="xl"
+          :to="{ name: 'coach-trainings' }"
+        >
+          <v-icon start>mdi-arrow-left</v-icon>
+          Voltar
+        </v-btn>
       </div>
     </v-sheet>
 
