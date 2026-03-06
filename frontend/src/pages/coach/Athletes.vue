@@ -636,7 +636,6 @@ function fcCardVars(a: any): Record<string, string> {
       '--fc-g3': 'rgba(var(--v-theme-warning), 0.52)',
       '--fc-border': 'rgba(var(--v-theme-warning), 0.65)',
       '--fc-glow': 'rgba(var(--v-theme-warning), 0.55)',
-      '--fc-fire': '0.85',
     }
   }
 
@@ -647,7 +646,6 @@ function fcCardVars(a: any): Record<string, string> {
       '--fc-g3': 'rgba(var(--v-theme-success), 0.44)',
       '--fc-border': 'rgba(var(--v-theme-success), 0.55)',
       '--fc-glow': 'rgba(var(--v-theme-success), 0.45)',
-      '--fc-fire': '0.55',
     }
   }
 
@@ -658,7 +656,6 @@ function fcCardVars(a: any): Record<string, string> {
       '--fc-g3': 'rgba(var(--v-theme-error), 0.48)',
       '--fc-border': 'rgba(var(--v-theme-error), 0.58)',
       '--fc-glow': 'rgba(var(--v-theme-error), 0.48)',
-      '--fc-fire': '0.70',
     }
   }
 
@@ -668,7 +665,6 @@ function fcCardVars(a: any): Record<string, string> {
     '--fc-g3': 'rgba(var(--v-theme-on-surface), 0.10)',
     '--fc-border': 'rgba(var(--v-theme-on-surface), 0.20)',
     '--fc-glow': 'rgba(var(--v-theme-on-surface), 0.24)',
-    '--fc-fire': '0.22',
   }
 }
 
@@ -1170,7 +1166,6 @@ watch([search, positionFilter], () => {
   /* Texto sempre segue o tema (light/dark), não a cor da nota */
   --fc-text: rgba(var(--v-theme-on-surface), 1);
   --fc-sub: rgba(var(--v-theme-on-surface), 0.75);
-  --fc-fire: 0.45;
 
   position: relative;
   width: 220px;
@@ -1188,97 +1183,19 @@ watch([search, positionFilter], () => {
   filter: blur(14px);
   z-index: 0;
   opacity: 0.7;
-  overflow: hidden;
 }
 
-/* “Fire” effect: chama suave atrás do card (varia pela nota via --fc-fire) */
-.athlete-fc__glow::before,
-.athlete-fc__glow::after {
-  content: '';
-  position: absolute;
-  inset: -30%;
-  border-radius: 999px;
-  opacity: calc(var(--fc-fire) * 0.55);
-  pointer-events: none;
-  mix-blend-mode: screen;
-  filter: blur(18px) saturate(1.15);
-}
+/*
+  EFEITO “FOGO” (desativado a pedido)
 
-.athlete-fc__glow::before {
-  background:
-    radial-gradient(circle at 30% 70%, var(--fc-g1) 0%, transparent 55%),
-    radial-gradient(circle at 55% 40%, var(--fc-g2) 0%, transparent 58%),
-    radial-gradient(circle at 75% 75%, var(--fc-g3) 0%, transparent 60%);
-  transform: translateY(10%) rotate(-8deg);
-  animation: fcFlameDrift 2.2s ease-in-out infinite;
-}
+  Mantido aqui comentado caso queiram reativar futuramente.
 
-.athlete-fc__glow::after {
-  background:
-    conic-gradient(
-      from 190deg at 50% 70%,
-      transparent 0 10%,
-      var(--fc-g3) 14%,
-      transparent 22%,
-      var(--fc-g2) 30%,
-      transparent 38%,
-      var(--fc-g1) 50%,
-      transparent 58%,
-      var(--fc-g2) 68%,
-      transparent 78%,
-      var(--fc-g3) 88%,
-      transparent 100%
-    );
-  opacity: calc(var(--fc-fire) * 0.35);
-  transform: translateY(16%) rotate(12deg);
-  animation: fcFlameFlicker 1.35s ease-in-out infinite;
-}
-
-.athlete-fc:hover .athlete-fc__glow::before {
-  opacity: calc(var(--fc-fire) * 0.70);
-}
-
-.athlete-fc:hover .athlete-fc__glow::after {
-  opacity: calc(var(--fc-fire) * 0.45);
-}
-
-@keyframes fcFlameDrift {
-  0% {
-    transform: translateY(12%) translateX(-2%) rotate(-10deg) scale(1.02);
-  }
-  50% {
-    transform: translateY(6%) translateX(2%) rotate(-6deg) scale(1.08);
-  }
-  100% {
-    transform: translateY(12%) translateX(-2%) rotate(-10deg) scale(1.02);
-  }
-}
-
-@keyframes fcFlameFlicker {
-  0% {
-    transform: translateY(18%) rotate(14deg) scale(1.02);
-    filter: blur(20px) saturate(1.2);
-  }
-  35% {
-    transform: translateY(14%) rotate(10deg) scale(1.08);
-    filter: blur(16px) saturate(1.35);
-  }
-  70% {
-    transform: translateY(16%) rotate(12deg) scale(1.05);
-    filter: blur(18px) saturate(1.25);
-  }
-  100% {
-    transform: translateY(18%) rotate(14deg) scale(1.02);
-    filter: blur(20px) saturate(1.2);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
   .athlete-fc__glow::before,
-  .athlete-fc__glow::after {
-    animation: none;
-  }
-}
+  .athlete-fc__glow::after { ... }
+  @keyframes fcFlameDrift { ... }
+  @keyframes fcFlameFlicker { ... }
+  @media (prefers-reduced-motion: reduce) { ... }
+*/
 
 .athlete-fc__card {
   position: relative;
