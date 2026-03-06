@@ -28,8 +28,21 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
   - exportação do treino em PDF e CSV
 - Atletas:
   - CRUD de atletas com foto
-  - listagem em cards (layout “FIFA-style”) + métricas vindas da API
+  - listagem em cards (layout estilo “FC/OVR”) + métricas vindas da API
+    - **OVR**: número grande no topo do card (0–100) derivado da nota do atleta: `OVR = round(rating * 10)`
+      - `rating` vem da API (média ponderada de drills) e é limitado de 0 a 10
+      - quando `rating` é 0, o card pode mostrar `OVR = --` (sem avaliação ainda)
+    - **Cores do card por nota** (faixas do `rating`):
+      - 0–6: cinza (crítico)
+      - 7: vermelho (bom)
+      - 8–9: verde claro (muito bom)
+      - 10: dourado (excelente)
+    - **Número da camisa**: usa o campo `jersey_number` e aparece no badge (círculo) do card quando existir
+    - **Atributos (derivados)** exibidos abaixo do nome (placeholder visual, calculado por `rating` + `current_position`):
+      - `VEL` (velocidade), `PAS` (passe), `REC` (recepção), `BLO` (bloqueio), `COB` (cobertura), `FOR` (força)
+    - Foto preenche o frame (cover) e o nome tem efeito de “faixa/badge” (melhor legibilidade no light/dark)
   - métricas agregadas (`/api/athletes/stats/`) e `rating` por atleta
+  - upload de foto com compressão automática no backend (Pillow) ao salvar o atleta
   - Regras de usuário (login) no cadastro de atleta:
     - no cadastro de atleta novo: é possível apenas **criar** um novo usuário (não lista/seleciona usuários existentes)
     - ao editar atleta: não é possível criar/vincular/alterar usuário
@@ -47,6 +60,8 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
 - Layout com `NavigationDrawer` em modo `rail` (compacto) + header com perfil e toggle
 - Drawer usa a foto real do atleta (quando existir), com fallback para avatar por iniciais
 - Padrão visual: headers “sticky” com blur + cards `tonal` arredondados
+- Toggle de tema (claro/escuro) com persistência (`localStorage`) via API do Vuetify `theme.change(...)`
+- Botão PWA **Instalar** aparece quando o navegador disponibiliza o prompt e some após instalar/usar o prompt (persistido)
 - Loading padrão com `%` (determinate): ciclo de ~5s e continua em loop enquanto a API não finalizar
   - composable: `frontend/src/composables/useProgressCircular.ts`
 
