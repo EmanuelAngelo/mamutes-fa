@@ -249,6 +249,7 @@
                   <div><b>Mover:</b> arraste os jogadores.</div>
                   <div><b>Rota:</b> clique para pontos e duplo-clique para finalizar.</div>
                   <div><b>Apagar:</b> clique próximo a uma rota para remover.</div>
+                  <div class="mt-2"><b>Posições:</b> {{ positionsLegend }}</div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -524,14 +525,14 @@ type Route = { player_id: string; points: Array<{ x: number; y: number }>; type?
 const DEFAULT_PLAYERS: Player[] = [
   { id: 'qb', x: 250, y: 400, role: 'QB', team: 'offense', label: 'QB' },
   { id: 'c', x: 250, y: 440, role: 'C', team: 'offense', label: 'C' },
-  { id: 'wr1', x: 80, y: 400, role: 'WR', team: 'offense', label: 'W1' },
-  { id: 'wr2', x: 420, y: 400, role: 'WR', team: 'offense', label: 'W2' },
+  { id: 'wr1', x: 80, y: 400, role: 'WR', team: 'offense', label: 'WR' },
+  { id: 'wr2', x: 420, y: 400, role: 'WR', team: 'offense', label: 'WR' },
   { id: 'rb', x: 250, y: 470, role: 'RB', team: 'offense', label: 'RB' },
-  { id: 'db1', x: 80, y: 350, role: 'DB', team: 'defense', label: 'D1' },
-  { id: 'db2', x: 420, y: 350, role: 'DB', team: 'defense', label: 'D2' },
-  { id: 'lb', x: 250, y: 360, role: 'LB', team: 'defense', label: 'LB' },
-  { id: 's1', x: 160, y: 300, role: 'S', team: 'defense', label: 'S1' },
-  { id: 's2', x: 340, y: 300, role: 'S', team: 'defense', label: 'S2' },
+  { id: 'cb1', x: 80, y: 350, role: 'CB', team: 'defense', label: 'CB' },
+  { id: 'cb2', x: 420, y: 350, role: 'CB', team: 'defense', label: 'CB' },
+  { id: 'lb1', x: 250, y: 360, role: 'LB', team: 'defense', label: 'LB' },
+  { id: 'lb2', x: 210, y: 310, role: 'LB', team: 'defense', label: 'LB' },
+  { id: 'rs1', x: 160, y: 300, role: 'R/S', team: 'defense', label: 'R/S' },
 ]
 
 const players = ref<Player[]>([])
@@ -564,6 +565,22 @@ const playTypeItems = computed(() => {
   const base = ['pass', 'run', 'trick']
   const fromPlays = plays.value.map((p) => String(p.play_type || '').trim()).filter(Boolean)
   return Array.from(new Set([...base, ...fromPlays]))
+})
+
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  QB: 'Quarterback',
+  C: 'Center',
+  WR: 'Wide Receiver',
+  RB: 'Running Back',
+  LB: 'Linebacker',
+  CB: 'Cornerback',
+  'R/S': 'Rush/Safety',
+}
+
+const positionsLegend = computed(() => {
+  return Object.entries(ROLE_DESCRIPTIONS)
+    .map(([abbr, full]) => `${abbr} = ${full}`)
+    .join(' • ')
 })
 
 function playTypeLabel(t: string): string {
@@ -626,8 +643,37 @@ function playerLabel(pl: any): string {
   const label = String(pl?.label ?? '').trim()
   if (label) return label
   const role = String(pl?.role ?? '').trim()
-  if (role) return role.slice(0, 2).toUpperCase()
+  if (role) {
+    const normalized = role.toUpperCase()
+    return normalized.slice(0, 3)
+  }
   return String(pl?.id ?? '?').slice(0, 2).toUpperCase()
+}
+
+function normalizePlayer(pl: any) {
+  const roleOriginal = String(pl?.role ?? '').trim()
+  const labelOriginal = String(pl?.label ?? '').trim()
+
+  const roleUpper = roleOriginal.toUpperCase()
+  const labelUpper = labelOriginal.toUpperCase()
+
+  let role = roleOriginal
+  let label = labelOriginal
+
+  // legacy -> current
+  if (roleUpper === 'DB') role = 'CB'
+  if (labelUpper === 'DB' || /^D\d$/.test(labelUpper)) label = 'CB'
+
+  if (roleUpper === 'S') role = 'R/S'
+  if (labelUpper === 'S' || /^S\d?$/.test(labelUpper)) label = 'R/S'
+
+  if (roleUpper === 'WR' && /^W\d$/.test(labelUpper)) label = 'WR'
+
+  return {
+    ...pl,
+    role: role || pl?.role,
+    label: label || pl?.label,
+  }
 }
 
 async function fetchPlays() {
@@ -639,7 +685,7 @@ async function fetchPlays() {
     plays.value = items.map((p: any) => ({
       ...p,
       tags: Array.isArray(p?.tags) ? p.tags : [],
-      players: Array.isArray(p?.players) ? p.players : [],
+      players: Array.isArray(p?.players) ? p.players.map(normalizePlayer) : [],
       routes: Array.isArray(p?.routes) ? p.routes : [],
       formation: typeof p?.formation === 'string' ? p.formation : 'shotgun',
       play_type: typeof p?.play_type === 'string' ? p.play_type : 'pass',

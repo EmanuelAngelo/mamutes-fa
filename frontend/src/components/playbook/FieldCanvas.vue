@@ -227,7 +227,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, isSelected: boolea
   ctx.fillStyle = 'rgb(255, 255, 255)'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const label = p.label || (p.role ? p.role.slice(0, 1).toUpperCase() : '?')
+  const label = String(p.label ?? '').trim() || (p.role ? String(p.role).trim().toUpperCase().slice(0, 3) : '?')
   ctx.fillText(label, p.x, p.y)
 
   if (isDragging) {
