@@ -189,10 +189,21 @@ function isAppInstalled(): boolean {
   return Boolean((window.navigator as any)?.standalone)
 }
 
+function isIOS(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = String(window.navigator?.userAgent ?? '')
+  const isAppleMobile = /iPad|iPhone|iPod/i.test(ua)
+  // iPadOS can present itself as Mac; detect touch-capable Macs.
+  const isIPadOS = /Macintosh/i.test(ua) && 'ontouchend' in document
+  return isAppleMobile || isIPadOS
+}
+
 const showInstallButton = computed(() => {
   if (installButtonUsed.value) return false
   if (isAppInstalled()) return false
-  return Boolean(installPrompt.value)
+  // On iOS, `beforeinstallprompt` is not supported.
+  // We still show the button to guide the user to "Add to Home Screen".
+  return Boolean(installPrompt.value) || isIOS()
 })
 
 function resolveApiRoot(): string {
@@ -264,7 +275,22 @@ onMounted(() => {
 })
 
 async function onInstallClick() {
-  if (!installPrompt.value) return
+  // iOS: no install prompt event; provide instructions instead.
+  if (!installPrompt.value) {
+    if (isIOS() && !isAppInstalled()) {
+      window.alert(
+        'No iPhone/iPad, o Chrome não mostra o botão de instalar como no Android.\n\nPara instalar: abra este site no Safari e toque em Compartilhar (quadrado com seta) > Adicionar à Tela de Início.'
+      )
+      installButtonUsed.value = true
+      try {
+        localStorage.setItem(INSTALL_USED_KEY, '1')
+      } catch {
+        // ignore
+      }
+    }
+    return
+  }
+
   installing.value = true
   try {
     await installPrompt.value.prompt()
