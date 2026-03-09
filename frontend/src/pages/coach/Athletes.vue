@@ -107,92 +107,150 @@
           <div class="athlete-fc" :style="[fcCardVars(a), { '--delay': `${index * 50}ms` }]">
             <div class="athlete-fc__glow" />
 
-            <div class="athlete-fc__card">
-              <svg
-                class="athlete-fc__pattern"
-                viewBox="0 0 220 310"
-                preserveAspectRatio="xMidYMid slice"
-                aria-hidden="true"
-              >
-                <polygon
-                  points="110,30 190,80 190,180 110,230 30,180 30,80"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.6)"
-                  stroke-width="1.5"
-                />
-                <polygon
-                  points="110,55 165,90 165,170 110,205 55,170 55,90"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.5)"
-                  stroke-width="1"
-                />
-                <polygon
-                  points="110,75 145,105 145,155 110,185 75,155 75,105"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.35)"
-                  stroke-width="0.8"
-                />
-                <line x1="0" y1="0" x2="220" y2="155" stroke="rgba(255,255,255,0.15)" stroke-width="40" />
-                <line x1="0" y1="93" x2="132" y2="0" stroke="rgba(255,255,255,0.10)" stroke-width="20" />
-              </svg>
+            <div
+              class="athlete-fc__card"
+              :class="{ 'is-flipped': isAthleteCardFlipped(a.id) }"
+              role="button"
+              tabindex="0"
+              @click="toggleAthleteCardFlip(a.id)"
+              @keydown.enter.prevent="toggleAthleteCardFlip(a.id)"
+              @keydown.space.prevent="toggleAthleteCardFlip(a.id)"
+            >
+              <div class="athlete-fc__face athlete-fc__face--front">
+                <svg
+                  class="athlete-fc__pattern"
+                  viewBox="0 0 220 310"
+                  preserveAspectRatio="xMidYMid slice"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="110,30 190,80 190,180 110,230 30,180 30,80"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.6)"
+                    stroke-width="1.5"
+                  />
+                  <polygon
+                    points="110,55 165,90 165,170 110,205 55,170 55,90"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.5)"
+                    stroke-width="1"
+                  />
+                  <polygon
+                    points="110,75 145,105 145,155 110,185 75,155 75,105"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.35)"
+                    stroke-width="0.8"
+                  />
+                  <line x1="0" y1="0" x2="220" y2="155" stroke="rgba(255,255,255,0.15)" stroke-width="40" />
+                  <line x1="0" y1="93" x2="132" y2="0" stroke="rgba(255,255,255,0.10)" stroke-width="20" />
+                </svg>
 
-              <div class="athlete-fc__shine" />
+                <div class="athlete-fc__shine" />
 
-              <div class="athlete-fc__ovr">
-                <div class="athlete-fc__ovr-num">{{ fcOvr(a) }}</div>
-                <div class="athlete-fc__ovr-pos">{{ fcPosShort(a) }}</div>
-                <div class="athlete-fc__ovr-badge">
-                  <span
-                    v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''"
-                    class="athlete-fc__ovr-jersey"
-                  >
-                    {{ jerseyText(a) }}
-                  </span>
-                  <span v-else class="athlete-fc__ovr-dot" />
-                </div>
-              </div>
-
-              <div class="athlete-fc__photo">
-                <img
-                  v-if="athletePhotoUrl(a)"
-                  :src="athletePhotoUrl(a)"
-                  :alt="a.name"
-                  class="athlete-fc__img"
-                  loading="lazy"
-                />
-                <div v-else class="athlete-fc__img-empty">
-                  <v-icon size="80" class="opacity-35">mdi-account</v-icon>
-                </div>
-              </div>
-
-              <div class="athlete-fc__footer">
-                <div class="athlete-fc__divider" />
-
-                <div class="athlete-fc__name-wrap">
-                  <div class="athlete-fc__name" :title="a.name">{{ a.name }}</div>
-                </div>
-
-                <div class="athlete-fc__attrs">
-                  <div v-for="(lbl, i) in FC_ATTRS" :key="lbl" class="athlete-fc__attr">
-                    <div class="athlete-fc__attr-val">{{ fcAttrs(a)[i] }}</div>
-                    <div class="athlete-fc__attr-lbl">{{ lbl }}</div>
+                <div class="athlete-fc__ovr">
+                  <div class="athlete-fc__ovr-num">{{ fcOvr(a) }}</div>
+                  <div class="athlete-fc__ovr-pos">{{ fcPosShort(a) }}</div>
+                  <div class="athlete-fc__ovr-badge">
+                    <span
+                      v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''"
+                      class="athlete-fc__ovr-jersey"
+                    >
+                      {{ jerseyText(a) }}
+                    </span>
+                    <span v-else class="athlete-fc__ovr-dot" />
                   </div>
                 </div>
 
-                <div class="athlete-fc__meta">
-                  <span class="athlete-fc__dot" :class="statusDotClass(a)" />
-                  <span class="athlete-fc__meta-text">
-                    {{ a.is_active ? 'Ativo' : 'Inativo' }}
-                    <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
-                      · #{{ jerseyText(a) }}
-                    </template>
-                  </span>
+                <div class="athlete-fc__photo">
+                  <img
+                    v-if="athletePhotoUrl(a)"
+                    :src="athletePhotoUrl(a)"
+                    :alt="a.name"
+                    class="athlete-fc__img"
+                    loading="lazy"
+                  />
+                  <div v-else class="athlete-fc__img-empty">
+                    <v-icon size="80" class="opacity-35">mdi-account</v-icon>
+                  </div>
                 </div>
+
+                <div class="athlete-fc__footer">
+                  <div class="athlete-fc__divider" />
+
+                  <div class="athlete-fc__name-wrap">
+                    <div class="athlete-fc__name" :title="a.name">{{ a.name }}</div>
+                  </div>
+
+                  <div class="athlete-fc__attrs">
+                    <div v-for="(lbl, i) in FC_ATTRS" :key="lbl" class="athlete-fc__attr">
+                      <div class="athlete-fc__attr-val">{{ fcAttrs(a)[i] }}</div>
+                      <div class="athlete-fc__attr-lbl">{{ lbl }}</div>
+                    </div>
+                  </div>
+
+                  <div class="athlete-fc__meta">
+                    <span class="athlete-fc__dot" :class="statusDotClass(a)" />
+                    <span class="athlete-fc__meta-text">
+                      {{ a.is_active ? 'Ativo' : 'Inativo' }}
+                      <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
+                        · #{{ jerseyText(a) }}
+                      </template>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="athlete-fc__face athlete-fc__face--back" aria-hidden="true">
+                <div class="athlete-fc__back">
+                  <div class="athlete-fc__back-top">
+                    <div class="athlete-fc__back-name" :title="a.name">{{ a.name }}</div>
+                    <div class="athlete-fc__back-sub">
+                      {{ a.current_position || '-' }}
+                      <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
+                        · #{{ jerseyText(a) }}
+                      </template>
+                    </div>
+                  </div>
+
+                  <div class="athlete-fc__back-grid">
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Nascimento</div>
+                      <div class="athlete-fc__back-v">{{ a.birth_date ? formatDateBR(a.birth_date) : '-' }}</div>
+                    </div>
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Cidade</div>
+                      <div class="athlete-fc__back-v">{{ a.birth_city || '-' }}</div>
+                    </div>
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Altura</div>
+                      <div class="athlete-fc__back-v">{{ a.height_m ? `${a.height_m} m` : '-' }}</div>
+                    </div>
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Peso</div>
+                      <div class="athlete-fc__back-v">{{ a.weight_kg ? `${a.weight_kg} kg` : '-' }}</div>
+                    </div>
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Desejada</div>
+                      <div class="athlete-fc__back-v">{{ a.desired_position || '-' }}</div>
+                    </div>
+                    <div class="athlete-fc__back-item">
+                      <div class="athlete-fc__back-k">Status</div>
+                      <div class="athlete-fc__back-v">{{ a.is_active ? 'Ativo' : 'Inativo' }}</div>
+                    </div>
+                  </div>
+
+                  <div class="athlete-fc__back-hint">Toque para voltar</div>
+                </div>
+              </div>
+
+              <div v-if="isAthleteCardTearing(a.id)" class="athlete-fc__tear" aria-hidden="true">
+                <div class="athlete-fc__tear-half athlete-fc__tear-half--left" />
+                <div class="athlete-fc__tear-half athlete-fc__tear-half--right" />
               </div>
             </div>
 
             <div class="athlete-fc__actions">
-              <v-btn size="small" variant="tonal" class="flex-grow-1" @click.stop="edit(a)">
+              <v-btn size="small" variant="tonal" class="flex-grow-1" @click.stop="onEditAthlete(a)">
                 <v-icon start size="16">mdi-pencil</v-icon>
                 Editar
               </v-btn>
@@ -511,6 +569,45 @@ import { useProgressCircular } from '../../composables/useProgressCircular'
 const athletes = ref<any[]>([])
 const loadingAthletes = ref(false)
 
+const flippedAthleteId = ref<number | null>(null)
+const tearingAthleteId = ref<number | null>(null)
+
+function isAthleteCardFlipped(id: number): boolean {
+  return flippedAthleteId.value === id
+}
+
+function toggleAthleteCardFlip(id: number) {
+  if (tearingAthleteId.value === id) return
+  flippedAthleteId.value = flippedAthleteId.value === id ? null : id
+}
+
+function isAthleteCardTearing(id: number): boolean {
+  return tearingAthleteId.value === id
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false
+  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)
+}
+
+async function onEditAthlete(a: any) {
+  if (!a?.id) return
+  if (tearingAthleteId.value) return
+
+  // If user prefers reduced motion, skip the animation.
+  if (prefersReducedMotion()) {
+    edit(a)
+    return
+  }
+
+  flippedAthleteId.value = null
+  tearingAthleteId.value = Number(a.id)
+  // Match CSS animation duration.
+  await new Promise((r) => window.setTimeout(r, 420))
+  tearingAthleteId.value = null
+  edit(a)
+}
+
 const loadingStats = ref(false)
 const stats = ref<{ total: number; avg_rating: number; top_performer: { id: number; name: string; rating: number } | null }>({
   total: 0,
@@ -819,6 +916,12 @@ async function fetchAthletes() {
     const params = buildAthletesParams()
     const { data } = await http.get('/athletes/', { params })
     athletes.value = data
+    if (flippedAthleteId.value && !athletes.value.some((a: any) => a?.id === flippedAthleteId.value)) {
+      flippedAthleteId.value = null
+    }
+    if (tearingAthleteId.value && !athletes.value.some((a: any) => a?.id === tearingAthleteId.value)) {
+      tearingAthleteId.value = null
+    }
   } finally {
     loadingAthletes.value = false
   }
@@ -1168,6 +1271,7 @@ watch([search, positionFilter], () => {
   --fc-sub: rgba(var(--v-theme-on-surface), 0.75);
 
   position: relative;
+  perspective: 900px;
   width: 220px;
   margin: 0 auto;
   padding-bottom: 44px;
@@ -1209,11 +1313,227 @@ watch([search, positionFilter], () => {
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
   overflow: hidden;
   z-index: 1;
-  transition: transform 220ms ease;
+  transform-style: preserve-3d;
+  transition: transform 360ms cubic-bezier(.2,.8,.2,1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.athlete-fc__tear {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.athlete-fc__tear-half {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--fc-g1) 0%, var(--fc-g2) 55%, var(--fc-g3) 100%);
+  box-shadow:
+    0 0 0 2px var(--fc-border),
+    0 12px 40px var(--fc-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.athlete-fc__tear-half--left {
+  clip-path: polygon(
+    0 0,
+    54% 0,
+    50% 6%,
+    56% 13%,
+    49% 20%,
+    57% 28%,
+    50% 36%,
+    58% 45%,
+    49% 55%,
+    56% 64%,
+    50% 74%,
+    58% 84%,
+    50% 92%,
+    54% 100%,
+    0 100%
+  );
+  transform-origin: 54% 50%;
+  animation: fcTearLeft 420ms cubic-bezier(.2,.8,.2,1) forwards;
+}
+
+.athlete-fc__tear-half--right {
+  clip-path: polygon(
+    46% 0,
+    100% 0,
+    100% 100%,
+    46% 100%,
+    50% 92%,
+    42% 84%,
+    50% 74%,
+    44% 64%,
+    51% 55%,
+    42% 45%,
+    50% 36%,
+    43% 28%,
+    51% 20%,
+    44% 13%,
+    50% 6%
+  );
+  transform-origin: 46% 50%;
+  animation: fcTearRight 420ms cubic-bezier(.2,.8,.2,1) forwards;
+}
+
+@keyframes fcTearLeft {
+  0% {
+    transform: translateX(0) rotate(0deg);
+    filter: blur(0);
+    opacity: 1;
+  }
+  55% {
+    transform: translateX(-18px) rotate(-6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-46px) rotate(-10deg);
+    filter: blur(0.6px);
+    opacity: 0;
+  }
+}
+
+@keyframes fcTearRight {
+  0% {
+    transform: translateX(0) rotate(0deg);
+    filter: blur(0);
+    opacity: 1;
+  }
+  55% {
+    transform: translateX(18px) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(46px) rotate(10deg);
+    filter: blur(0.6px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .athlete-fc__tear-half--left,
+  .athlete-fc__tear-half--right {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .athlete-fc:hover .athlete-fc__card {
   transform: translateY(-10px) scale(1.04);
+}
+
+.athlete-fc__card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.athlete-fc:hover .athlete-fc__card.is-flipped {
+  transform: translateY(-10px) scale(1.04) rotateY(180deg);
+}
+
+.athlete-fc__card:focus-visible {
+  outline: 2px solid rgba(var(--v-theme-primary), 0.70);
+  outline-offset: 3px;
+}
+
+.athlete-fc__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.athlete-fc__face--back {
+  transform: rotateY(180deg);
+}
+
+.athlete-fc__back {
+  position: absolute;
+  inset: 0;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.athlete-fc__back-top {
+  padding: 10px 10px 8px;
+  border-radius: 14px;
+  background: rgba(var(--v-theme-surface), 0.42);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.athlete-fc__back-name {
+  font-weight: 950;
+  font-size: 14px;
+  color: var(--fc-text);
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.athlete-fc__back-sub {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--fc-sub);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 750;
+}
+
+.athlete-fc__back-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.athlete-fc__back-item {
+  padding: 10px 10px 9px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-surface), 0.60);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  box-shadow: inset 0 1px 0 rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.athlete-fc__back-k {
+  font-weight: 800;
+  font-size: 9px;
+  color: var(--fc-sub);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.athlete-fc__back-v {
+  margin-top: 3px;
+  font-weight: 950;
+  font-size: 12px;
+  color: var(--fc-text);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.athlete-fc__back-hint {
+  margin-top: auto;
+  text-align: center;
+  font-size: 9px;
+  color: rgba(var(--v-theme-on-surface), 0.70);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+  opacity: 0.9;
 }
 
 .athlete-fc__pattern {
