@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "combine",
     "dashboard",
     "playbook",
+    "notices.apps.NoticesConfig",
 ]
 
 MIDDLEWARE = [

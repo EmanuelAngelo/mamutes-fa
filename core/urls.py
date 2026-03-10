@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/combine/", include("combine.urls")),
     path("api/dashboard/", include("dashboard.urls")),
     path("api/playbook/", include("playbook.urls")),
+    path("api/notices/", include("notices.urls")),
 ]
 
 if settings.DEBUG:

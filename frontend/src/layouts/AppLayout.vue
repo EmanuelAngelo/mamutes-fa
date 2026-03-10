@@ -7,6 +7,18 @@
       <v-chip v-if="auth.me" class="mr-3 d-none d-sm-flex" variant="tonal">
         {{ auth.me.username }} • {{ auth.me.role }}
       </v-chip>
+
+      <v-badge v-if="auth.me" :model-value="hasUnreadNotices" dot color="error" class="mr-1">
+        <v-btn
+          icon
+          variant="text"
+          :aria-label="hasUnreadNotices ? 'Avisos (novos)' : 'Avisos'"
+          :to="{ name: 'notices' }"
+        >
+          <v-icon>mdi-bell</v-icon>
+        </v-btn>
+      </v-badge>
+
       <v-btn
         icon
         variant="text"
@@ -67,6 +79,11 @@
             :to="{ name: 'player-dashboard' }"
           />
           <v-list-item
+            title="Avisos"
+            prepend-icon="mdi-bell"
+            :to="{ name: 'notices' }"
+          />
+          <v-list-item
             title="Meu Perfil"
             prepend-icon="mdi-account"
             :to="{ name: 'player-profile' }"
@@ -83,6 +100,11 @@
             title="Coach Dashboard"
             prepend-icon="mdi-chart-line"
             :to="{ name: 'coach-dashboard' }"
+          />
+          <v-list-item
+            title="Avisos"
+            prepend-icon="mdi-bell"
+            :to="{ name: 'notices' }"
           />
           <v-list-item
             title="Treinos"
@@ -126,9 +148,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useDisplay, useTheme } from 'vuetify'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
 import { http } from '../api/http'
@@ -143,12 +165,77 @@ const rail = ref(true)
 const changePasswordOpen = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const display = useDisplay()
 const theme = useTheme()
 
 const isMobile = computed(() => display.smAndDown.value)
 
 const athletePhotoUrl = ref<string | null>(null)
+
+const hasUnreadNotices = ref(false)
+let noticesPollTimer: number | undefined
+
+function readNoticesLastSeen(userId: number): string | null {
+  try {
+    return localStorage.getItem(`notices_last_seen_at:${userId}`)
+  } catch {
+    return null
+  }
+}
+
+function isNewerIso(a: string, b: string): boolean {
+  const ta = new Date(a).getTime()
+  const tb = new Date(b).getTime()
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return a !== b
+  return ta > tb
+}
+
+async function fetchLatestNoticeCreatedAt(): Promise<string | null> {
+  try {
+    const { data } = await http.get('/notices/', { params: { ordering: '-created_at' } })
+    const list = Array.isArray(data) ? data : (data?.results ?? [])
+    const latest = list?.[0]?.created_at
+    return typeof latest === 'string' ? latest : null
+  } catch {
+    return null
+  }
+}
+
+async function refreshNoticesUnread() {
+  const meId = auth.me?.id
+  if (!meId) {
+    hasUnreadNotices.value = false
+    return
+  }
+
+  const latestCreatedAt = await fetchLatestNoticeCreatedAt()
+  if (!latestCreatedAt) {
+    hasUnreadNotices.value = false
+    return
+  }
+
+  const lastSeen = readNoticesLastSeen(meId)
+  if (!lastSeen) {
+    hasUnreadNotices.value = true
+    return
+  }
+
+  hasUnreadNotices.value = isNewerIso(latestCreatedAt, lastSeen)
+}
+
+function startNoticesPolling() {
+  stopNoticesPolling()
+  refreshNoticesUnread()
+  noticesPollTimer = window.setInterval(refreshNoticesUnread, 60_000)
+}
+
+function stopNoticesPolling() {
+  if (noticesPollTimer) {
+    window.clearInterval(noticesPollTimer)
+    noticesPollTimer = undefined
+  }
+}
 
 const THEME_KEY = 'theme_preference'
 const isDark = computed(() => Boolean(theme.global.current.value.dark))
@@ -251,6 +338,8 @@ onMounted(() => {
   fetchAthletePhotoIfAny()
   loadThemePreference()
 
+  startNoticesPolling()
+
   try {
     installButtonUsed.value = localStorage.getItem(INSTALL_USED_KEY) === '1'
   } catch {
@@ -273,6 +362,30 @@ onMounted(() => {
     }
   })
 })
+
+onUnmounted(() => {
+  stopNoticesPolling()
+})
+
+watch(
+  () => auth.me?.id,
+  () => {
+    if (!auth.me?.id) {
+      hasUnreadNotices.value = false
+      stopNoticesPolling()
+      return
+    }
+    startNoticesPolling()
+  }
+)
+
+watch(
+  () => route.name,
+  (name) => {
+    // Ao abrir a tela de Avisos, consideramos como “visto” (a própria página também atualiza o last_seen).
+    if (name === 'notices') hasUnreadNotices.value = false
+  }
+)
 
 async function onInstallClick() {
   // iOS: no install prompt event; provide instructions instead.

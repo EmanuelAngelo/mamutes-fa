@@ -31,6 +31,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, roles: ['PLAYER'] },
       },
 
+      // SHARED
+      {
+        path: 'notices',
+        name: 'notices',
+        component: () => import('@/pages/Notices.vue'),
+        meta: { requiresAuth: true, roles: ['PLAYER', 'COACH', 'ADMIN'] },
+      },
+
       // COACH / ADMIN
       {
         path: 'coach',

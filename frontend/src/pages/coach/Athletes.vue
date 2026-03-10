@@ -116,7 +116,8 @@
               @keydown.enter.prevent="toggleAthleteCardFlip(a.id)"
               @keydown.space.prevent="toggleAthleteCardFlip(a.id)"
             >
-              <div class="athlete-fc__face athlete-fc__face--front">
+              <div class="athlete-fc__inner">
+                <div class="athlete-fc__face athlete-fc__face--front">
                 <svg
                   class="athlete-fc__pattern"
                   viewBox="0 0 220 310"
@@ -198,48 +199,58 @@
                     </span>
                   </div>
                 </div>
-              </div>
+                </div>
 
-              <div class="athlete-fc__face athlete-fc__face--back" aria-hidden="true">
-                <div class="athlete-fc__back">
-                  <div class="athlete-fc__back-top">
-                    <div class="athlete-fc__back-name" :title="a.name">{{ a.name }}</div>
-                    <div class="athlete-fc__back-sub">
-                      {{ a.current_position || '-' }}
-                      <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
-                        · #{{ jerseyText(a) }}
-                      </template>
+                <div class="athlete-fc__face athlete-fc__face--back" aria-hidden="true">
+                  <div class="athlete-fc__back">
+                    <div class="athlete-fc__back-top">
+                      <div class="athlete-fc__back-name" :title="a.name">{{ a.name }}</div>
+                      <div class="athlete-fc__back-sub">
+                        {{ a.current_position || '-' }}
+                        <template v-if="a.jersey_number !== null && a.jersey_number !== undefined && a.jersey_number !== ''">
+                          · #{{ jerseyText(a) }}
+                        </template>
+                      </div>
+                      <div class="athlete-fc__back-sub2">
+                        OVR: {{ fcOvr(a) }}
+                        · Nota: {{ ratingBackText(a) }}
+                      </div>
                     </div>
+
+                    <div class="athlete-fc__back-grid">
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Nascimento</div>
+                        <div class="athlete-fc__back-v">{{ a.birth_date ? formatDateBR(a.birth_date) : '-' }}</div>
+                      </div>
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Cidade</div>
+                        <div class="athlete-fc__back-v">{{ a.birth_city || '-' }}</div>
+                      </div>
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Altura</div>
+                        <div class="athlete-fc__back-v">{{ a.height_m ? `${a.height_m} m` : '-' }}</div>
+                      </div>
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Peso</div>
+                        <div class="athlete-fc__back-v">{{ a.weight_kg ? `${a.weight_kg} kg` : '-' }}</div>
+                      </div>
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Desejada</div>
+                        <div class="athlete-fc__back-v">{{ a.desired_position || '-' }}</div>
+                      </div>
+                      <div class="athlete-fc__back-item">
+                        <div class="athlete-fc__back-k">Status</div>
+                        <div class="athlete-fc__back-v">{{ a.is_active ? 'Ativo' : 'Inativo' }}</div>
+                      </div>
+                    </div>
+
+                    <!-- <div class="athlete-fc__back-notes">
+                      <div class="athlete-fc__back-k">Observações</div>
+                      <div class="athlete-fc__back-notes-v">{{ String(a.career_notes || '').trim() || '-' }}</div>
+                    </div> -->
+
+                    <div class="athlete-fc__back-hint">Toque para voltar</div>
                   </div>
-
-                  <div class="athlete-fc__back-grid">
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Nascimento</div>
-                      <div class="athlete-fc__back-v">{{ a.birth_date ? formatDateBR(a.birth_date) : '-' }}</div>
-                    </div>
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Cidade</div>
-                      <div class="athlete-fc__back-v">{{ a.birth_city || '-' }}</div>
-                    </div>
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Altura</div>
-                      <div class="athlete-fc__back-v">{{ a.height_m ? `${a.height_m} m` : '-' }}</div>
-                    </div>
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Peso</div>
-                      <div class="athlete-fc__back-v">{{ a.weight_kg ? `${a.weight_kg} kg` : '-' }}</div>
-                    </div>
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Desejada</div>
-                      <div class="athlete-fc__back-v">{{ a.desired_position || '-' }}</div>
-                    </div>
-                    <div class="athlete-fc__back-item">
-                      <div class="athlete-fc__back-k">Status</div>
-                      <div class="athlete-fc__back-v">{{ a.is_active ? 'Ativo' : 'Inativo' }}</div>
-                    </div>
-                  </div>
-
-                  <div class="athlete-fc__back-hint">Toque para voltar</div>
                 </div>
               </div>
 
@@ -679,6 +690,12 @@ function ratingLabel(r: number): string {
   if (r >= 5) return 'Regular'
   if (r >= 3) return 'Fraco'
   return 'Crítico'
+}
+
+function ratingBackText(a: any): string {
+  const r = ratingValue(a)
+  if (!r) return '--'
+  return `${r.toFixed(1)} · ${ratingLabel(r)}`
 }
 
 // Card estilo “OVR” (derivado da nota e posição)
@@ -1272,6 +1289,7 @@ watch([search, positionFilter], () => {
 
   position: relative;
   perspective: 900px;
+  -webkit-perspective: 900px;
   width: 220px;
   margin: 0 auto;
   padding-bottom: 44px;
@@ -1313,11 +1331,20 @@ watch([search, positionFilter], () => {
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
   overflow: hidden;
   z-index: 1;
-  transform-style: preserve-3d;
   transition: transform 360ms cubic-bezier(.2,.8,.2,1);
+  will-change: transform;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.athlete-fc__inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 360ms cubic-bezier(.2,.8,.2,1);
+  will-change: transform;
 }
 
 .athlete-fc__tear {
@@ -1428,12 +1455,8 @@ watch([search, positionFilter], () => {
   transform: translateY(-10px) scale(1.04);
 }
 
-.athlete-fc__card.is-flipped {
+.athlete-fc__card.is-flipped .athlete-fc__inner {
   transform: rotateY(180deg);
-}
-
-.athlete-fc:hover .athlete-fc__card.is-flipped {
-  transform: translateY(-10px) scale(1.04) rotateY(180deg);
 }
 
 .athlete-fc__card:focus-visible {
@@ -1448,6 +1471,8 @@ watch([search, positionFilter], () => {
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .athlete-fc__face--back {
@@ -1492,6 +1517,18 @@ watch([search, positionFilter], () => {
   font-weight: 750;
 }
 
+.athlete-fc__back-sub2 {
+  margin-top: 4px;
+  font-size: 9px;
+  color: rgba(var(--v-theme-on-surface), 0.70);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .athlete-fc__back-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1523,6 +1560,28 @@ watch([search, positionFilter], () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.athlete-fc__back-notes {
+  padding: 10px 10px 9px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-surface), 0.60);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  box-shadow: inset 0 1px 0 rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.athlete-fc__back-notes-v {
+  margin-top: 3px;
+  font-weight: 750;
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.88);
+  line-height: 1.2;
+  display: -webkit-box;
+  line-clamp: 4;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
 }
 
 .athlete-fc__back-hint {
