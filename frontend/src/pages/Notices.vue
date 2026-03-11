@@ -12,16 +12,33 @@
           </div>
         </div>
 
-        <v-btn v-if="auth.isCoachOrAdmin" color="primary" variant="tonal" :to="backTarget" rounded="xl">
-          <v-icon start>mdi-arrow-left</v-icon>
-          Voltar
-        </v-btn>
-        <v-btn v-else variant="tonal" :to="backTarget" rounded="xl">
-          <v-icon start>mdi-arrow-left</v-icon>
-          Voltar
-        </v-btn>
+        <div class="d-flex flex-wrap align-center ga-2">
+          <v-btn
+            v-if="pushAvailable"
+            variant="tonal"
+            :color="isPushSubscribed ? 'primary' : undefined"
+            :loading="pushLoading"
+            @click="togglePush"
+          >
+            <v-icon start>{{ isPushSubscribed ? 'mdi-bell-off' : 'mdi-bell-ring' }}</v-icon>
+            {{ isPushSubscribed ? 'Desativar notificações' : 'Ativar notificações' }}
+          </v-btn>
+
+          <v-btn v-if="auth.isCoachOrAdmin" color="primary" variant="tonal" :to="backTarget" rounded="xl">
+            <v-icon start>mdi-arrow-left</v-icon>
+            Voltar
+          </v-btn>
+          <v-btn v-else variant="tonal" :to="backTarget" rounded="xl">
+            <v-icon start>mdi-arrow-left</v-icon>
+            Voltar
+          </v-btn>
+        </div>
       </div>
     </v-sheet>
+
+    <v-alert v-if="pushError" type="error" variant="tonal" class="mt-4">
+      {{ pushError }}
+    </v-alert>
 
     <v-card v-if="auth.isCoachOrAdmin" variant="tonal" rounded="xl" class="mt-4">
       <v-card-title class="d-flex flex-wrap align-center justify-space-between">
@@ -198,6 +215,119 @@ const backTarget = computed(() => {
   return auth.isPlayer ? { name: 'player-dashboard' } : { name: 'coach-dashboard' }
 })
 
+const pushAvailable = computed(() => {
+  return (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  )
+})
+
+const pushLoading = ref(false)
+const pushError = ref<string | null>(null)
+const isPushSubscribed = ref(false)
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i)
+  return outputArray
+}
+
+async function refreshPushStatus() {
+  if (!pushAvailable.value) return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    isPushSubscribed.value = Boolean(sub)
+  } catch {
+    isPushSubscribed.value = false
+  }
+}
+
+async function subscribePush() {
+  pushError.value = null
+  if (!pushAvailable.value) return
+
+  if (Notification.permission === 'denied') {
+    pushError.value = 'Notificações estão bloqueadas no navegador.'
+    return
+  }
+
+  pushLoading.value = true
+  try {
+    const perm = await Notification.requestPermission()
+    if (perm !== 'granted') {
+      pushError.value = 'Permissão de notificações não concedida.'
+      return
+    }
+
+    const { data } = await http.get('/notices/push/public-key/')
+    const publicKey = String((data as any)?.publicKey || '')
+    if (!publicKey) {
+      pushError.value = 'Servidor sem chave pública VAPID configurada.'
+      return
+    }
+
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    })
+
+    const json = sub.toJSON() as any
+    await http.post('/notices/push/subscribe/', {
+      endpoint: json?.endpoint,
+      keys: json?.keys,
+      user_agent: navigator.userAgent,
+    })
+
+    isPushSubscribed.value = true
+  } catch (e: any) {
+    const status = e?.response?.status
+    pushError.value = status ? `Falha ao ativar notificações (HTTP ${status}).` : 'Falha ao ativar notificações.'
+    await refreshPushStatus()
+  } finally {
+    pushLoading.value = false
+  }
+}
+
+async function unsubscribePush() {
+  pushError.value = null
+  if (!pushAvailable.value) return
+
+  pushLoading.value = true
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      isPushSubscribed.value = false
+      return
+    }
+    const endpoint = (sub.toJSON() as any)?.endpoint
+    await sub.unsubscribe()
+    if (endpoint) {
+      await http.post('/notices/push/unsubscribe/', { endpoint })
+    }
+    isPushSubscribed.value = false
+  } catch (e: any) {
+    const status = e?.response?.status
+    pushError.value = status ? `Falha ao desativar notificações (HTTP ${status}).` : 'Falha ao desativar notificações.'
+    await refreshPushStatus()
+  } finally {
+    pushLoading.value = false
+  }
+}
+
+async function togglePush() {
+  if (pushLoading.value) return
+  if (isPushSubscribed.value) return unsubscribePush()
+  return subscribePush()
+}
+
 function formatDateTimeBR(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -291,6 +421,7 @@ function markNoticesSeenFromList(list: Notice[]) {
 onMounted(async () => {
   await fetchNotices()
   markNoticesSeenFromList(notices.value)
+  await refreshPushStatus()
 })
 
 watch(

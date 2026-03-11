@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Notice, NoticeComment
+from .models import Notice, NoticeComment, PushSubscription
 
 User = get_user_model()
 
@@ -63,3 +63,27 @@ class NoticeCommentCreateSerializer(serializers.Serializer):
         if not v:
             raise serializers.ValidationError("Informe um comentário.")
         return v
+
+
+class PushSubscriptionUpsertSerializer(serializers.Serializer):
+    endpoint = serializers.CharField()
+    keys = serializers.DictField(child=serializers.CharField(), allow_empty=False)
+    user_agent = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+    def validate(self, attrs):
+        keys = attrs.get("keys") or {}
+        p256dh = keys.get("p256dh")
+        auth = keys.get("auth")
+        if not p256dh or not auth:
+            raise serializers.ValidationError({"keys": "Informe keys.p256dh e keys.auth."})
+        return attrs
+
+
+class PushSubscriptionUnsubscribeSerializer(serializers.Serializer):
+    endpoint = serializers.CharField()
+
+
+class PushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushSubscription
+        fields = ("id", "endpoint", "created_at", "updated_at")

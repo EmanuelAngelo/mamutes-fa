@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Notice, NoticeComment, NoticeLike
+from .models import Notice, NoticeComment, NoticeLike, PushSubscription
 
 
 @admin.register(Notice)
@@ -21,3 +21,10 @@ class NoticeCommentAdmin(admin.ModelAdmin):
 class NoticeLikeAdmin(admin.ModelAdmin):
     list_display = ("id", "notice", "user", "created_at")
     list_select_related = ("notice", "user")
+
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "updated_at")
+    search_fields = ("user__username", "endpoint")
+    list_select_related = ("user",)

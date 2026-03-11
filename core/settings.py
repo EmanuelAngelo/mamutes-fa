@@ -139,3 +139,8 @@ SIMPLE_JWT = {
 
 BRAND_LOGO_PATH = BASE_DIR / "media" / "brand" / "logo.png"
 BRAND_NAME = "Mamutes F.A."
+
+# Web Push (VAPID)
+WEBPUSH_VAPID_PUBLIC_KEY = os.getenv("WEBPUSH_VAPID_PUBLIC_KEY", "")
+WEBPUSH_VAPID_PRIVATE_KEY = os.getenv("WEBPUSH_VAPID_PRIVATE_KEY", "")
+WEBPUSH_VAPID_SUBJECT = os.getenv("WEBPUSH_VAPID_SUBJECT", "mailto:admin@mamutes.local")
