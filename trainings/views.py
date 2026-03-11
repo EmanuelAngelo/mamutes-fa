@@ -21,6 +21,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
+from xml.sax.saxutils import escape
 
 from accounts.permissions import IsAdminOrCoach
 from .models import TrainingSession, Attendance, DrillCatalog, TrainingDrill, DrillScore
@@ -768,6 +769,8 @@ def _export_pdf_impl(self, request, pk=None):
     styles.add(ParagraphStyle(name="H2X", fontSize=11, leading=13, spaceBefore=8, spaceAfter=5))
     styles.add(ParagraphStyle(name="SmallX", fontSize=9, leading=11))
     styles.add(ParagraphStyle(name="TinyX", fontSize=8, leading=10))
+    styles.add(ParagraphStyle(name="HdrTinyX", fontName="Helvetica-Bold", fontSize=7, leading=8, alignment=1, wordWrap="CJK"))
+    styles.add(ParagraphStyle(name="CellTinyX", fontSize=7, leading=8, wordWrap="CJK"))
 
     brand_name = getattr(settings, "BRAND_NAME", "Mamutes F.A.")
     logo_path = getattr(settings, "BRAND_LOGO_PATH", None)
@@ -779,6 +782,7 @@ def _export_pdf_impl(self, request, pk=None):
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(header_bg)),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#C9C9C9")),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("VALIGN", (0, 0), (-1, 0), "TOP"),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FAFAFA")]),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
@@ -849,9 +853,13 @@ def _export_pdf_impl(self, request, pk=None):
     # =============================
     # Drill columns chunking (smart split)
     # =============================
+    # Larguras por drill
+    NOTE_COL_W = 1.2 * cm
+    COMMENT_COL_W = 2.8 * cm
+    # Larguras base (fixas) para a tabela de notas
+    NOTES_BASE_WIDTHS = [7.0 * cm, 1.6 * cm, 1.8 * cm, 2.4 * cm, 2.0 * cm, 1.2 * cm]  # atleta, camisa, pos, status, média, rank
+
     def calc_max_drills_per_page():
-        # Larguras base (fixas)
-        base_widths = [7.0*cm, 1.6*cm, 1.8*cm, 2.4*cm, 2.4*cm, 1.2*cm]  # atleta, camisa, pos, status, média, rank
         page_width = landscape(A4)[0] - (doc.leftMargin + doc.rightMargin)
 
         # Cada drill vira 2 colunas (nota + coment) → coment é maior
@@ -860,11 +868,11 @@ def _export_pdf_impl(self, request, pk=None):
         #   - N drills (nota)
         #   - N drills (coment)
         # Para caber, limitamos N por página
-        remaining_width = max(page_width - sum(base_widths), 10*cm)
+        remaining_width = max(page_width - sum(NOTES_BASE_WIDTHS), 10 * cm)
 
         # “custo” por drill = (nota_col + comment_col)
         # nota pequena, comment média
-        per_drill = (1.2*cm + 2.8*cm)  # ~4.0cm
+        per_drill = (NOTE_COL_W + COMMENT_COL_W)
         max_n = int(remaining_width // per_drill)
         return max(1, min(max_n, 10))  # no máximo 10 drills por página pra manter legível
 
@@ -1019,11 +1027,19 @@ def _export_pdf_impl(self, request, pk=None):
     for idx, chunk in enumerate(drill_chunks, start=1):
         story.append(Paragraph(f"Bloco {idx}/{total_chunks}", styles["H2X"]))
 
-        headers = ["Atleta", "Camisa", "Posição", "Status", "Média", "Rank"]
+        hdr = styles["HdrTinyX"]
+        headers = [
+            Paragraph("Atleta", hdr),
+            Paragraph("Camisa", hdr),
+            Paragraph("Posição", hdr),
+            Paragraph("Status", hdr),
+            Paragraph("Média", hdr),
+            Paragraph("Rank", hdr),
+        ]
         for d in chunk:
-            headers.append(f"{d.name} (nota)")
+            headers.append(Paragraph(f"{escape(str(d.name))}<br/>(nota)", hdr))
         for d in chunk:
-            headers.append(f"{d.name} (coment.)")
+            headers.append(Paragraph(f"{escape(str(d.name))}<br/>(coment.)", hdr))
 
         rows = [headers]
 
@@ -1031,12 +1047,12 @@ def _export_pdf_impl(self, request, pk=None):
             athlete = a.athlete
             r = ranking_map.get(athlete.id, {})
             base = [
-                athlete.name,
-                athlete.jersey_number or "",
-                athlete.current_position or "",
-                a.get_status_display(),
-                r.get("weighted_average", "") if r.get("weighted_average") is not None else "",
-                r.get("rank", ""),
+                Paragraph(escape(str(athlete.name or "")), styles["SmallX"]),
+                str(athlete.jersey_number or ""),
+                str(athlete.current_position or ""),
+                str(a.get_status_display()),
+                str(r.get("weighted_average", "") if r.get("weighted_average") is not None else ""),
+                str(r.get("rank", "")),
             ]
 
             scores_row = []
@@ -1051,17 +1067,17 @@ def _export_pdf_impl(self, request, pk=None):
                     comment_txt = (comment_txt[:120] + "...") if len(comment_txt) > 123 else comment_txt
                 else:
                     comment_txt = ""
-                comments_row.append(comment_txt)
+                comments_row.append(Paragraph(escape(comment_txt), styles["CellTinyX"]))
 
             rows.append(base + scores_row + comments_row)
 
-        # Larguras (fixas + distribui)
-        base_widths = [7.0*cm, 1.6*cm, 1.8*cm, 2.4*cm, 2.0*cm, 1.2*cm]
+        # Larguras (fixas por drill: nota menor, comentário maior)
+        col_widths = NOTES_BASE_WIDTHS + ([NOTE_COL_W] * len(chunk)) + ([COMMENT_COL_W] * len(chunk))
         page_width = landscape(A4)[0] - (doc.leftMargin + doc.rightMargin)
-        remaining_cols = len(headers) - len(base_widths)
-        remaining_width = max(page_width - sum(base_widths), 10*cm)
-        each = remaining_width / max(remaining_cols, 1)
-        col_widths = base_widths + [each] * remaining_cols
+        total_w = sum(col_widths)
+        if total_w > page_width:
+            ratio = page_width / total_w
+            col_widths = [w * ratio for w in col_widths]
 
         t_notes = Table(rows, colWidths=col_widths, repeatRows=1)
         t_notes.setStyle(tstyle())
