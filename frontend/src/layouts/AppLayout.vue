@@ -84,6 +84,11 @@
             :to="{ name: 'notices' }"
           />
           <v-list-item
+            title="Meu Cofrinho"
+            prepend-icon="mdi-piggy-bank"
+            :to="{ name: 'cashbox' }"
+          />
+          <v-list-item
             title="Meu Perfil"
             prepend-icon="mdi-account"
             :to="{ name: 'player-profile' }"
@@ -105,6 +110,11 @@
             title="Avisos"
             prepend-icon="mdi-bell"
             :to="{ name: 'notices' }"
+          />
+          <v-list-item
+            title="Meu Cofrinho"
+            prepend-icon="mdi-piggy-bank"
+            :to="{ name: 'cashbox' }"
           />
           <v-list-item
             title="Treinos"

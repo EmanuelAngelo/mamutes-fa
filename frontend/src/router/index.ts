@@ -38,6 +38,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/Notices.vue'),
         meta: { requiresAuth: true, roles: ['PLAYER', 'COACH', 'ADMIN'] },
       },
+      {
+        path: 'cashbox',
+        name: 'cashbox',
+        component: () => import('@/pages/Cashbox.vue'),
+        meta: { requiresAuth: true, roles: ['PLAYER', 'COACH', 'ADMIN'] },
+      },
 
       // COACH / ADMIN
       {
@@ -85,11 +91,32 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to) => {
+router.onError(error => {
+  const message = String((error as any)?.message || error)
+
+  // Common after deploy/PWA update: the app HTML points to new chunk names
+  // but the browser (or SW) still has stale cached chunks.
+  const isChunkLoadError = message.includes('Failed to fetch dynamically imported module')
+    || message.includes('Importing a module script failed')
+    || message.includes('Loading chunk')
+
+  if (isChunkLoadError && typeof window !== 'undefined') {
+    const key = 'router_chunk_reload_once'
+    if (sessionStorage.getItem(key) !== '1') {
+      sessionStorage.setItem(key, '1')
+      window.location.reload()
+      return
+    }
+  }
+})
+
+router.beforeEach(async to => {
   const auth = useAuthStore()
 
   if (to.meta.requiresAuth) {
-    if (!auth.accessToken) return { name: 'login' }
+    if (!auth.accessToken) {
+      return { name: 'login' }
+    }
 
     if (!auth.me && !auth.loadingMe) {
       try {
@@ -101,7 +128,7 @@ router.beforeEach(async (to) => {
     }
 
     const roles = (to.meta.roles as string[] | undefined) ?? []
-    if (roles.length && auth.me && !roles.includes(auth.me.role)) {
+    if (roles.length > 0 && auth.me && !roles.includes(auth.me.role)) {
       return auth.me.role === 'PLAYER'
         ? { name: 'player-dashboard' }
         : { name: 'coach-dashboard' }
@@ -109,7 +136,9 @@ router.beforeEach(async (to) => {
   }
 
   if (to.name === 'login' && auth.accessToken) {
-    if (!auth.me) await auth.fetchMe()
+    if (!auth.me) {
+      await auth.fetchMe()
+    }
     return auth.me?.role === 'PLAYER'
       ? { name: 'player-dashboard' }
       : { name: 'coach-dashboard' }
@@ -117,5 +146,6 @@ router.beforeEach(async (to) => {
 
   return true
 })
+
 
 export default router

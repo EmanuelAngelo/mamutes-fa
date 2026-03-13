@@ -9,9 +9,24 @@ export const API_BASE_URL = 'https://ruthusky.pythonanywhere.com'
 // export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/'
 
 function resolveApiBaseUrl(): string {
+  const envBaseRaw = (import.meta.env.VITE_API_BASE_URL || '').trim()
+  if (envBaseRaw) {
+    const envBase = envBaseRaw.replace(/\/+$/, '')
+    if (envBase.endsWith('/api')) return envBase
+    return joinUrl(envBase, 'api')
+  }
+
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    // if (host === 'localhost' || host === '127.0.0.1') return joinUrl(LOCAL_API_BASE_URL, 'api')
+    const { protocol, hostname, origin, port } = window.location
+
+    // When running the frontend dev server (vite), the backend usually runs on :8000.
+    // This also makes the app work when accessed from another device on the LAN.
+    if (port && port !== '8000') {
+      return joinUrl(`${protocol}//${hostname}:8000`, 'api')
+    }
+
+    // In production (or when served from Django), prefer same-origin.
+    return joinUrl(origin, 'api')
   }
   return joinUrl(API_BASE_URL, 'api')
 }
@@ -42,6 +57,7 @@ function clearTokens() {
 export const http = axios.create({
   baseURL: resolveApiBaseUrl(),
   timeout: 20000,
+  headers: { Accept: 'application/json' },
 })
 
 function withAuthHeader(config: any, token: string) {

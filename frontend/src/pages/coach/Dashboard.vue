@@ -122,6 +122,54 @@
           </v-card-text>
         </v-card>
       </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Boxplot por drill (último treino)</v-card-title>
+          <v-card-text>
+            <div v-if="boxByDrill.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem notas suficientes no último treino.
+            </div>
+            <BoxPlotChart v-else title="Drills" :items="boxByDrill" :y-min="0" :y-max="10" />
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Boxplot por posição (último treino)</v-card-title>
+          <v-card-text>
+            <div v-if="boxByPosition.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem dados suficientes por posição.
+            </div>
+            <BoxPlotChart v-else title="Posições" :items="boxByPosition" :y-min="0" :y-max="10" />
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Boxplot por treino (últimos treinos)</v-card-title>
+          <v-card-text>
+            <div v-if="boxByTraining.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem dados suficientes.
+            </div>
+            <BoxPlotChart v-else title="Treinos" :items="boxByTraining" :y-min="0" :y-max="10" />
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card variant="tonal" rounded="xl">
+          <v-card-title>Boxplot por atleta (últimos treinos)</v-card-title>
+          <v-card-text>
+            <div v-if="boxByAthlete.length === 0" class="text-body-2 text-medium-emphasis">
+              Sem dados suficientes.
+            </div>
+            <BoxPlotChart v-else title="Atletas" :items="boxByAthlete" :y-min="0" :y-max="10" />
+          </v-card-text>
+        </v-card>
+      </v-col>
     </v-row>
   </v-container>
 </template>
@@ -131,6 +179,7 @@ import { computed, onMounted, ref } from 'vue'
 import LineChart from '../../components/charts/LineChart.vue'
 import BarChart from '../../components/charts/BarChart.vue'
 import PieChart from '../../components/charts/PieChart.vue'
+import BoxPlotChart from '../../components/charts/BoxPlotChart.vue'
 import { http } from '../../api/http'
 import { useProgressCircular } from '../../composables/useProgressCircular'
 
@@ -154,6 +203,14 @@ const latestTraining = ref<any | null>(null)
 const comparison = ref<any | null>(null)
 const hardestDrill = ref<any | null>(null)
 const mostConsistentAthlete = ref<any | null>(null)
+
+type BoxplotStats = { min: number; q1: number; median: number; q3: number; max: number; outliers?: number[]; n?: number }
+type BoxplotItem = { label: string; stats: BoxplotStats }
+
+const boxByDrill = ref<BoxplotItem[]>([])
+const boxByPosition = ref<BoxplotItem[]>([])
+const boxByTraining = ref<BoxplotItem[]>([])
+const boxByAthlete = ref<BoxplotItem[]>([])
 
 type AttendanceItem = {
   training_id: number
@@ -221,6 +278,20 @@ async function fetchOverview() {
 
       hardestDrill.value = analytics?.hardest_drill ?? null
       mostConsistentAthlete.value = analytics?.most_consistent_athlete ?? null
+
+      const { data: box } = await http.get('/trainings/boxplots/', { params: { limit: 8, training_id: trainingId } })
+      boxByDrill.value = Array.isArray(box?.by_drill)
+        ? box.by_drill.map((x: any) => ({ label: String(x?.label ?? ''), stats: x?.stats as BoxplotStats }))
+        : []
+      boxByPosition.value = Array.isArray(box?.by_position)
+        ? box.by_position.map((x: any) => ({ label: String(x?.label ?? 'Sem posição'), stats: x?.stats as BoxplotStats }))
+        : []
+      boxByTraining.value = Array.isArray(box?.by_training)
+        ? box.by_training.map((x: any) => ({ label: String(x?.label ?? ''), stats: x?.stats as BoxplotStats }))
+        : []
+      boxByAthlete.value = Array.isArray(box?.by_athlete)
+        ? box.by_athlete.map((x: any) => ({ label: String(x?.label ?? ''), stats: x?.stats as BoxplotStats }))
+        : []
     }
   } catch (e: any) {
     const status = e?.response?.status
