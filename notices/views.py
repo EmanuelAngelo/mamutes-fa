@@ -59,6 +59,7 @@ class NoticeViewSet(ModelViewSet):
             .prefetch_related(
                 Prefetch("comments", queryset=recent_comments_qs, to_attr="_recent_comments"),
             )
+            .order_by("-pinned", "-created_at")
         )
         return qs
 

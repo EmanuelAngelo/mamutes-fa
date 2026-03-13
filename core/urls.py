@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/dashboard/", include("dashboard.urls")),
     path("api/playbook/", include("playbook.urls")),
     path("api/notices/", include("notices.urls")),
+    path("api/cashbox/", include("cashbox.urls")),
 ]
 
 if settings.DEBUG:

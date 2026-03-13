@@ -3,7 +3,7 @@
 Plataforma para gestão técnica do time: atletas, treinos, presença, drills, notas, rankings, dashboards, relatórios e playbook de jogadas.
 
 ## Stack
-- Backend: Django 6 + Django REST Framework + SimpleJWT + SQLite
+- Backend: Django + Django REST Framework + SimpleJWT + SQLite
 - Frontend: Vue 3 + Vuetify 4 + Vite + Pinia + Vue Router
 - Gráficos: Chart.js (`vue-chartjs`)
 - Upload de mídia: Pillow (fotos de atletas e imagens de jogadas)
@@ -55,6 +55,16 @@ Plataforma para gestão técnica do time: atletas, treinos, presença, drills, n
 - Dashboard do player
 - Meu Perfil (com preview card e edição)
 - Atualização via `PATCH /api/athletes/me/` (inclui foto)
+
+### Avisos
+- Tela `Avisos` compartilhada (PLAYER/COACH/ADMIN)
+- `COACH/ADMIN`: publicar (título obrigatório), fixar (`pinned`), editar e remover
+- `PLAYER`: visualizar, curtir e comentar
+- Push (PWA): botão **Notificar** usa Web Push (subscribe/unsubscribe) quando o servidor está configurado com VAPID
+
+### Cofrinho
+- Cofrinho global: `COACH/ADMIN` cria metas e todos os `PLAYER` conseguem ver
+- Movimentações (depósito/retirada) apenas `COACH/ADMIN`; `PLAYER` é somente leitura
 
 ### UI/UX
 - Layout com `NavigationDrawer` em modo `rail` (compacto) + header com perfil e toggle
@@ -131,8 +141,10 @@ pnpm dev
 ```
 
 Config de API do frontend:
-- Hoje está em `frontend/src/api/http.ts` (const `API_BASE_URL`).
-- O axios usa `baseURL = ${API_BASE_URL}/api` e remove automaticamente prefixos `/api/...` nas chamadas.
+- Está em `frontend/src/api/http.ts` (`resolveApiBaseUrl()`).
+- Override (opcional): `VITE_API_BASE_URL` (ex: `http://127.0.0.1:8000` ou `http://127.0.0.1:8000/api`).
+- Sem override: se o frontend estiver em uma porta diferente de `8000`, assume backend em `:8000`; caso contrário usa mesma origem.
+- O axios usa `baseURL` em `/api` e remove automaticamente prefixos `api/` e `/api/` nas chamadas.
 
 ## Endpoints principais
 
@@ -178,6 +190,30 @@ Export (admin/coach):
 - `GET /api/dashboard/my/latest-training/`
 - `GET /api/dashboard/my/drill-trends/`
 - `GET /api/dashboard/my/improvements/`
+
+### Notices (Avisos)
+- `GET/POST /api/notices/` (POST: admin/coach)
+- `GET/PATCH/DELETE /api/notices/{id}/` (PATCH/DELETE: admin/coach)
+- `POST /api/notices/{id}/like/`
+- `GET/POST /api/notices/{id}/comments/`
+
+Push (PWA):
+- `GET /api/notices/push/public-key/`
+- `GET /api/notices/push/subscriptions/`
+- `POST /api/notices/push/subscribe/`
+- `POST /api/notices/push/unsubscribe/`
+
+Config (backend, opcional):
+- `WEBPUSH_VAPID_PUBLIC_KEY`
+- `WEBPUSH_VAPID_PRIVATE_KEY` (PEM ou caminho para arquivo PEM)
+- `WEBPUSH_VAPID_SUBJECT` (ex: `mailto:admin@mamutes.local`)
+
+Gerar VAPID keys (opcional): `python manage.py generate_vapid_keys` (requer `py-vapid` e `cryptography`).
+
+### Cashbox (Cofrinho)
+- `GET/POST /api/cashbox/goals/` (POST: admin/coach)
+- `GET/PATCH/DELETE /api/cashbox/goals/{id}/` (PATCH/DELETE: admin/coach)
+- `GET/POST /api/cashbox/goals/{id}/transactions/` (POST: admin/coach)
 
 ### Combine
 - `GET/POST /api/combine/tests/`

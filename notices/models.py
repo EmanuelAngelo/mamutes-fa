@@ -5,6 +5,7 @@ from django.db import models
 class Notice(models.Model):
     title = models.CharField(max_length=140, blank=True)
     body = models.TextField()
+    pinned = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -16,7 +17,7 @@ class Notice(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ("-created_at",)
+        ordering = ("-pinned", "-created_at")
 
     def __str__(self) -> str:
         t = (self.title or "").strip()

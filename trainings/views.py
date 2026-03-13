@@ -222,6 +222,59 @@ class TrainingSessionViewSet(ModelViewSet):
         var = self._variance(values)
         return float(sqrt(var)) if var is not None else None
 
+    def _median_sorted(self, values_sorted):
+        n = len(values_sorted)
+        if n == 0:
+            return None
+        mid = n // 2
+        if n % 2 == 1:
+            return float(values_sorted[mid])
+        return float(values_sorted[mid - 1] + values_sorted[mid]) / 2.0
+
+    def _boxplot_stats(self, values):
+        """Return Tukey boxplot stats for numeric values.
+
+        Uses median-of-halves quartiles and 1.5*IQR fences for whiskers/outliers.
+        """
+        vals = [float(v) for v in values if v is not None]
+        vals.sort()
+        n = len(vals)
+        if n == 0:
+            return None
+
+        median = self._median_sorted(vals)
+        mid = n // 2
+        if n % 2 == 0:
+            lower = vals[:mid]
+            upper = vals[mid:]
+        else:
+            lower = vals[:mid]
+            upper = vals[mid + 1 :]
+
+        q1 = self._median_sorted(lower) if lower else float(vals[0])
+        q3 = self._median_sorted(upper) if upper else float(vals[-1])
+        iqr = float(q3 - q1)
+
+        low_fence = float(q1 - 1.5 * iqr)
+        high_fence = float(q3 + 1.5 * iqr)
+
+        inliers_low = [v for v in vals if v >= low_fence]
+        inliers_high = [v for v in vals if v <= high_fence]
+        whisker_min = float(min(inliers_low)) if inliers_low else float(vals[0])
+        whisker_max = float(max(inliers_high)) if inliers_high else float(vals[-1])
+
+        outliers = [float(v) for v in vals if v < whisker_min or v > whisker_max]
+
+        return {
+            "min": whisker_min,
+            "q1": float(q1),
+            "median": float(median),
+            "q3": float(q3),
+            "max": whisker_max,
+            "outliers": outliers,
+            "n": int(n),
+        }
+
     def _weighted_averages(self, training, position_code=None):
         items = self._compute_ranking_items(training, position_code=position_code)
         return [x for x in items if x.get("weighted_average") is not None]
@@ -692,6 +745,113 @@ class TrainingSessionViewSet(ModelViewSet):
         return Response({
             "trainings": [{"id": t.id, "date": t.date} for t in trainings],
             "items": items,
+        })
+
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="boxplots")
+    def boxplots(self, request):
+        """Boxplots para o dashboard (coach): por drill, posição, treino e atleta."""
+        try:
+            limit = int(request.query_params.get("limit", "8"))
+        except ValueError:
+            limit = 8
+        limit = max(2, min(limit, 30))
+
+        training_id = request.query_params.get("training_id")
+        training_id = int(training_id) if training_id and str(training_id).isdigit() else None
+
+        latest_qs = TrainingSession.objects.all().order_by("-date", "-id")
+        trainings = list(latest_qs[:limit])
+        trainings.reverse()  # chronological
+
+        selected = None
+        if training_id:
+            selected = TrainingSession.objects.filter(pk=training_id).first()
+        if not selected:
+            selected = trainings[-1] if trainings else latest_qs.first()
+
+        by_drill = []
+        by_position = []
+
+        if selected:
+            drills = list(TrainingDrill.objects.filter(training=selected).order_by("order", "id"))
+            scores_qs = (
+                DrillScore.objects.filter(training_drill__training=selected)
+                .values("training_drill_id")
+                .values_list("training_drill_id", "score")
+            )
+            drill_bucket = defaultdict(list)
+            for td_id, score in scores_qs:
+                drill_bucket[int(td_id)].append(float(score))
+
+            for d in drills:
+                stats = self._boxplot_stats(drill_bucket.get(d.id, []))
+                if not stats:
+                    continue
+                by_drill.append({
+                    "training_drill_id": d.id,
+                    "label": d.name,
+                    "stats": stats,
+                })
+
+            ranked = self._weighted_averages(selected)
+            pos_bucket = defaultdict(list)
+            for it in ranked:
+                pos = (it.get("position") or "SEM_POS").strip() or "SEM_POS"
+                pos_bucket[pos].append(float(it["weighted_average"]))
+
+            for pos, vals in pos_bucket.items():
+                stats = self._boxplot_stats(vals)
+                if not stats:
+                    continue
+                by_position.append({
+                    "label": None if pos == "SEM_POS" else pos,
+                    "stats": stats,
+                })
+            by_position.sort(key=lambda x: (x["label"] is None, x["label"] or ""))
+
+        by_training = []
+        athlete_bucket = defaultdict(lambda: {"label": None, "values": []})
+        for t in trainings:
+            ranked = self._weighted_averages(t)
+            values = [float(x["weighted_average"]) for x in ranked]
+
+            stats = self._boxplot_stats(values)
+            if stats:
+                by_training.append({
+                    "training_id": t.id,
+                    "label": str(t.date),
+                    "stats": stats,
+                })
+
+            for it in ranked:
+                aid = int(it["athlete_id"])
+                if not athlete_bucket[aid]["label"]:
+                    athlete_bucket[aid]["label"] = it.get("athlete_name")
+                athlete_bucket[aid]["values"].append(float(it["weighted_average"]))
+
+        by_athlete = []
+        for aid, payload in athlete_bucket.items():
+            stats = self._boxplot_stats(payload.get("values", []))
+            if not stats:
+                continue
+            by_athlete.append({
+                "athlete_id": aid,
+                "label": payload.get("label") or str(aid),
+                "stats": stats,
+            })
+        by_athlete.sort(key=lambda x: str(x.get("label") or ""))
+
+        return Response({
+            "selected_training": {
+                "id": selected.id,
+                "date": selected.date,
+            } if selected else None,
+            "limit": limit,
+            "scale": {"min": 0, "max": 10},
+            "by_drill": by_drill,
+            "by_position": by_position,
+            "by_training": by_training,
+            "by_athlete": by_athlete,
         })
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsAdminOrCoach], url_path="export/pdf")

@@ -31,6 +31,11 @@ _default_allowed_hosts = ["localhost", "127.0.0.1", "ruthusky.pythonanywhere.com
 _env_allowed_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 ALLOWED_HOSTS = _env_allowed_hosts or _default_allowed_hosts
 
+# Dev convenience: allow accessing the backend from other devices on the LAN.
+# (In production, always set DJANGO_ALLOWED_HOSTS explicitly.)
+if DEBUG and not _env_allowed_hosts:
+    ALLOWED_HOSTS = ["*"]
+
 
 # Application definition
 
@@ -56,7 +61,8 @@ INSTALLED_APPS = [
     "combine",
     "dashboard",
     "playbook",
-    "notices.apps.NoticesConfig",
+    "notices",
+    "cashbox",
 ]
 
 MIDDLEWARE = [

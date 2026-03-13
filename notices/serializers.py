@@ -33,6 +33,7 @@ class NoticeSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "body",
+            "pinned",
             "created_by",
             "created_at",
             "updated_at",
@@ -46,7 +47,13 @@ class NoticeSerializer(serializers.ModelSerializer):
 class NoticeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notice
-        fields = ("title", "body")
+        fields = ("title", "body", "pinned")
+
+    def validate_title(self, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise serializers.ValidationError("Informe um título.")
+        return v
 
     def validate_body(self, value: str) -> str:
         v = (value or "").strip()
